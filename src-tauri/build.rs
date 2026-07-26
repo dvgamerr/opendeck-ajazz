@@ -7,11 +7,9 @@ fn main() {
 		for entry in fs::read_dir("../plugins")?.flatten() {
 			let out_dir = std::path::Path::new("target").join("plugins").join(entry.file_name());
 			fs::create_dir_all(&out_dir)?;
-			let status = std::process::Command::new("deno")
+			let status = std::process::Command::new("bun")
 				.args([
 					"run",
-					"--lock=target/deno.lock",
-					"--allow-all",
 					"build.ts",
 					fs::canonicalize(out_dir)?.to_string_lossy().as_ref(),
 					&std::env::var("TARGET").unwrap(),

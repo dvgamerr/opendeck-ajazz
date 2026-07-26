@@ -63,26 +63,13 @@
 <Popup show>
 	<button class="mr-2 my-1 float-right text-xl dark:text-neutral-300" on:click={close}>✕</button>
 	<div class="flex flex-row items-start">
-		<img
-			src={"https://openactionapi.github.io/plugins/icons/" + id + ".png"}
-			alt={details.name}
-			class="size-48 rounded-2xl"
-		/>
+		<img src={"https://openactionapi.github.io/plugins/icons/" + id + ".png"} alt={details.name} class="size-48 rounded-2xl" />
 		<div class="flex flex-col justify-center h-48 ml-8">
 			<div class="text-3xl dark:text-neutral-200">{details.name}</div>
 			<div class="flex items-center mt-2 text-lg text-neutral-600 dark:text-neutral-400">
 				<span class="mr-2">by</span>
-				<img
-					src={"https://avatars.githubusercontent.com/" + details.repository.split("/")[3]}
-					alt="Author avatar"
-					class="size-7 mr-1.5 rounded-full"
-				/>
-				<a
-					target="_blank"
-					href={"https://github.com/" + details.repository.split("/")[3]}
-					on:click={() => window.open("https://github.com/" + details.repository.split("/")[3])}
-					class="underline"
-				>
+				<img src={"https://avatars.githubusercontent.com/" + details.repository.split("/")[3]} alt="Author avatar" class="size-7 mr-1.5 rounded-full" />
+				<a target="_blank" href={"https://github.com/" + details.repository.split("/")[3]} on:click={() => window.open("https://github.com/" + details.repository.split("/")[3])} class="underline">
 					{details.author}
 					{#if details.repository.split("/")[3] != details.author}
 						({details.repository.split("/")[3]})
@@ -91,12 +78,7 @@
 			</div>
 
 			<div class="flex flex-row items-center mt-6">
-				<button
-					on:click={install}
-					class="px-8 py-3 active:translate-y-0.5 text-lg text-neutral-100 bg-indigo-600 rounded-l-lg"
-				>
-					Install
-				</button>
+				<button on:click={install} class="px-8 py-3 active:translate-y-0.5 text-lg text-neutral-100 bg-indigo-600 rounded-l-lg"> Install </button>
 
 				<button
 					on:click={() => invoke("open_url", { url: details.download_url ?? details.repository + "/releases/latest" })}

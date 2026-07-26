@@ -29,7 +29,7 @@
 	}, 1e3);
 
 	async function installPlugin(name: string, url: string | null, file: string | null, fallback_id: string | null) {
-		if (!file && !await ask(`It may take a while to install the plugin.`, { title: `Install "${name}"?` })) return;
+		if (!file && !(await ask(`It may take a while to install the plugin.`, { title: `Install "${name}"?` }))) return;
 		try {
 			await invoke("install_plugin", { url, file, fallback_id });
 			message(`Successfully installed "${name}".`, { title: `Installed "${name}"` });
@@ -51,8 +51,6 @@
 				finishChoice = resolve;
 				cancelChoice = reject;
 			});
-		} catch (e) {
-			throw e;
 		} finally {
 			choices = undefined;
 			finishChoice = (_: unknown) => {};
@@ -112,11 +110,11 @@
 	async function installPluginFile() {
 		const path = await open({ multiple: false, directory: false });
 		if (!path) return;
-		await installPlugin(path.split(/[\/\\]/).at(-1) ?? path, null, path, null);
+		await installPlugin(path.replaceAll("\\", "/").split("/").at(-1) ?? path, null, path, null);
 	}
 
 	async function removePlugin(plugin: any) {
-		if (!await ask(`Are you sure you want to remove "${plugin.name}"?`, { title: `Remove "${plugin.name}"?` })) return;
+		if (!(await ask(`Are you sure you want to remove "${plugin.name}"?`, { title: `Remove "${plugin.name}"?` }))) return;
 		try {
 			await invoke("remove_plugin", { id: plugin.id });
 			message(`Successfully removed "${plugin.name}".`, { title: `Removed "${plugin.name}"` });
@@ -129,10 +127,10 @@
 	}
 
 	let installed: any[] = [];
-	(async () => installed = await invoke("list_plugins"))();
+	(async () => (installed = await invoke("list_plugins")))();
 
 	let plugins: { [id: string]: GitHubPlugin };
-	(async () => plugins = await (await fetch("https://openactionapi.github.io/plugins/catalogue.json")).json())();
+	(async () => (plugins = await (await fetch("https://openactionapi.github.io/plugins/catalogue.json")).json()))();
 
 	let query: string = "";
 
@@ -146,7 +144,7 @@
 
 <button
 	class="p-1 w-1/2 text-sm text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-700 border dark:border-neutral-600 rounded-lg outline-hidden"
-	on:click={() => showPopup = true}
+	on:click={() => (showPopup = true)}
 >
 	Plugins
 </button>
@@ -162,15 +160,15 @@
 />
 
 <Popup show={showPopup}>
-	<button class="mr-2 my-1 float-right text-xl dark:text-neutral-300" on:click={() => showPopup = false}>✕</button>
+	<button class="mr-2 my-1 float-right text-xl dark:text-neutral-300" on:click={() => (showPopup = false)}>✕</button>
 	<h2 class="m-2 font-semibold text-xl dark:text-neutral-300">Manage plugins</h2>
 
 	<h2 class="mx-2 mt-6 mb-2 text-lg dark:text-neutral-400">Installed plugins</h2>
 	<div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-		{#each installed.sort((a, b) => (a.builtin && !b.builtin) ? -1 : (b.builtin && !a.builtin) ? 1 : a.id.localeCompare(b.id)) as plugin}
+		{#each installed.sort((a, b) => (a.builtin && !b.builtin ? -1 : b.builtin && !a.builtin ? 1 : a.id.localeCompare(b.id))) as plugin}
 			<ListedPlugin
 				icon={getWebserverUrl(plugin.icon)}
-				name={($localisations && $localisations[plugin.id] && $localisations[plugin.id].Name) ? $localisations[plugin.id].Name : plugin.name}
+				name={$localisations && $localisations[plugin.id] && $localisations[plugin.id].Name ? $localisations[plugin.id].Name : plugin.name}
 				subtitle={plugin.version}
 				disconnected={!plugin.registered}
 				action={() => {
@@ -191,17 +189,9 @@
 				</svelte:fragment>
 
 				{#if $settings?.developer}
-					<ArrowClockwise
-						size="24"
-						class="mt-2"
-						color={document.documentElement.classList.contains("dark") ? "#C0BFBC" : "#77767B"}
-					/>
+					<ArrowClockwise size="24" class="mt-2" color={document.documentElement.classList.contains("dark") ? "#C0BFBC" : "#77767B"} />
 				{:else if !plugin.builtin}
-					<Trash
-						size="24"
-						class="mt-2"
-						color={document.documentElement.classList.contains("dark") ? "#C0BFBC" : "#77767B"}
-					/>
+					<Trash size="24" class="mt-2" color={document.documentElement.classList.contains("dark") ? "#C0BFBC" : "#77767B"} />
 				{/if}
 			</ListedPlugin>
 		{/each}
@@ -219,21 +209,12 @@
 	</div>
 	<div class="flex flex-row items-center m-2 bg-neutral-200 dark:bg-neutral-700 rounded-md">
 		<MagnifyingGlass size="14" class="ml-3 mr-0.5" color={document.documentElement.classList.contains("dark") ? "#DEDDDA" : "#77767B"} />
-		<input
-			bind:value={query}
-			class="w-full p-2 dark:text-neutral-300 outline-hidden"
-			placeholder="Search plugins"
-			type="search"
-			spellcheck="false"
-		/>
+		<input bind:value={query} class="w-full p-2 dark:text-neutral-300 outline-hidden" placeholder="Search plugins" type="search" spellcheck="false" />
 	</div>
 
 	<div class="ml-2 mt-8 mb-4">
 		<h2 class="font-semibold text-md dark:text-neutral-400">Elgato Marketplace</h2>
-		<button
-			on:click={() => invoke("open_url", { url: "https://github.com/nekename/OpenDeck/wiki/0.-Elgato-Marketplace" })}
-			class="mt-4 text-md text-blue-400 hover:underline"
-		>
+		<button on:click={() => invoke("open_url", { url: "https://github.com/nekename/OpenDeck/wiki/0.-Elgato-Marketplace" })} class="mt-4 text-md text-blue-400 hover:underline">
 			Click here for instructions
 		</button>
 	</div>
@@ -243,7 +224,7 @@
 	{:else}
 		<div class="flex flex-row items-center ml-2 mt-6 mb-2 space-x-2">
 			<h2 class="font-semibold text-md dark:text-neutral-400">Open-source plugins</h2>
-			<Tooltip> Open-source plugins downloaded from the author's releases. </Tooltip>
+			<Tooltip>Open-source plugins downloaded from the author's releases.</Tooltip>
 		</div>
 		<div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 			{#each Object.entries(plugins) as [id, plugin]}
@@ -252,12 +233,9 @@
 					name={plugin.name}
 					subtitle={plugin.author}
 					hidden={!plugin.name.toLowerCase().includes(query.toLowerCase())}
-					action={() => openDetailsView = id}
+					action={() => (openDetailsView = id)}
 				>
-					<ArrowSquareOut
-						size="24"
-						color={document.documentElement.classList.contains("dark") ? "#C0BFBC" : "#77767B"}
-					/>
+					<ArrowSquareOut size="24" color={document.documentElement.classList.contains("dark") ? "#C0BFBC" : "#77767B"} />
 				</ListedPlugin>
 			{/each}
 		</div>
@@ -268,7 +246,7 @@
 	{:then archiveRes}
 		<div class="flex flex-row items-center mt-6 mb-2">
 			<h2 class="mx-2 font-semibold text-md dark:text-neutral-400">Elgato App Store archive</h2>
-			<Tooltip> Plugins archived from the Elgato App Store (now replaced by the Elgato Marketplace). </Tooltip>
+			<Tooltip>Plugins archived from the Elgato App Store (now replaced by the Elgato Marketplace).</Tooltip>
 		</div>
 		{#await archiveRes.json() then entries}
 			<div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -280,10 +258,7 @@
 						hidden={!plugin.name.toLowerCase().includes(query.toLowerCase())}
 						action={() => installPluginElgato(plugin)}
 					>
-						<CloudArrowDown
-							size="24"
-							color={document.documentElement.classList.contains("dark") ? "#C0BFBC" : "#77767B"}
-						/>
+						<CloudArrowDown size="24" color={document.documentElement.classList.contains("dark") ? "#C0BFBC" : "#77767B"} />
 					</ListedPlugin>
 				{/each}
 			</div>
@@ -299,7 +274,7 @@
 			// @ts-expect-error
 			installPluginGitHub(openDetailsView, plugins[openDetailsView]);
 		}}
-		close={() => openDetailsView = null}
+		close={() => (openDetailsView = null)}
 	/>
 {/if}
 
@@ -313,10 +288,7 @@
 				{/each}
 			</select>
 		</div>
-		<button
-			class="mt-2 p-1 w-full text-sm text-neutral-700 dark:text-neutral-300 bg-neutral-200 dark:bg-neutral-800 border dark:border-neutral-600 rounded-lg"
-			on:click={finishChoice}
-		>
+		<button class="mt-2 p-1 w-full text-sm text-neutral-700 dark:text-neutral-300 bg-neutral-200 dark:bg-neutral-800 border dark:border-neutral-600 rounded-lg" on:click={finishChoice}>
 			Install
 		</button>
 	</div>

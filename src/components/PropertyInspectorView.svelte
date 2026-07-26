@@ -31,27 +31,30 @@
 		if (instance == null || !iframe.src || !iframe.src.startsWith(getWebserverUrl())) return;
 		const info = JSON.stringify(await invoke("make_info", { plugin: instance.action.plugin }));
 
-		iframe?.contentWindow?.postMessage({
-			event: "connect",
-			payload: [
-				getWebSocketPort(),
-				instance.context,
-				"registerPropertyInspector",
-				info,
-				JSON.stringify({
-					action: instance.action.uuid,
-					context: instance.context,
-					device: split[0],
-					payload: {
-						settings: instance.settings,
-						coordinates,
-						controller: split[2],
-						state: instance.current_state,
-						isInMultiAction: parseInt(split[4]) != 0,
-					},
-				}),
-			],
-		}, getWebserverUrl());
+		iframe?.contentWindow?.postMessage(
+			{
+				event: "connect",
+				payload: [
+					getWebSocketPort(),
+					instance.context,
+					"registerPropertyInspector",
+					info,
+					JSON.stringify({
+						action: instance.action.uuid,
+						context: instance.context,
+						device: split[0],
+						payload: {
+							settings: instance.settings,
+							coordinates,
+							controller: split[2],
+							state: instance.current_state,
+							isInMultiAction: parseInt(split[4]) != 0,
+						},
+					}),
+				],
+			},
+			getWebserverUrl(),
+		);
 	}
 
 	const closePopup = (context: string) => {
@@ -116,41 +119,46 @@
 				return mergedArray;
 			}
 
-			// @ts-expect-error
-			window.fetchCORS(...data.payload.args).then(async (response: Response) => {
-				const chunks = [];
-				if (response.body) {
-					const reader = response.body.getReader();
-					while (true) {
-						const { done, value } = await reader.read();
-						if (done) break;
-						chunks.push(value);
+			const fetchCORS = (window as typeof window & { fetchCORS: (...args: any[]) => Promise<Response> }).fetchCORS;
+			fetchCORS(...data.payload.args)
+				.then(async (response: Response) => {
+					const chunks = [];
+					if (response.body) {
+						const reader = response.body.getReader();
+						while (true) {
+							const { done, value } = await reader.read();
+							if (done) break;
+							chunks.push(value);
+						}
 					}
-				}
-				const body = combineUint8Arrays(chunks);
+					const body = combineUint8Arrays(chunks);
 
-				iframes[data.payload.context]?.contentWindow?.postMessage({
-					event: "fetchResponse",
-					payload: {
-						id: data.payload.id,
-						response: {
-							url: response.url,
-							body,
-							headers: response.headers.entries().toArray(),
-							status: response.status,
-							statusText: response.statusText,
+					iframes[data.payload.context]?.contentWindow?.postMessage(
+						{
+							event: "fetchResponse",
+							payload: {
+								id: data.payload.id,
+								response: {
+									url: response.url,
+									body,
+									headers: response.headers.entries().toArray(),
+									status: response.status,
+									statusText: response.statusText,
+								},
+							},
 						},
-					},
-				}, getWebserverUrl());
-			}).catch((error: any) => {
-				iframes[data.payload.context]?.contentWindow?.postMessage({ event: "fetchError", payload: { id: data.payload.id, error } }, getWebserverUrl());
-			});
+						getWebserverUrl(),
+					);
+				})
+				.catch((error: any) => {
+					iframes[data.payload.context]?.contentWindow?.postMessage({ event: "fetchError", payload: { id: data.payload.id, error } }, getWebserverUrl());
+				});
 		}
 	});
 
-	const nonNull = <T>(o: T | null): o is T => o != null;
-	$: instances = profile
-		.keys.filter(nonNull)
+	const nonNull = <T,>(o: T | null): o is T => o != null;
+	$: instances = profile.keys
+		.filter(nonNull)
 		.reduce((prev, current) => prev.concat(current.children ? [current, ...current.children] : current), [] as ActionInstance[])
 		.concat(profile.sliders.filter(nonNull));
 </script>
@@ -164,11 +172,7 @@
 />
 
 <div class="grow overflow-auto bg-white dark:bg-neutral-900 border-t dark:border-neutral-700" bind:this={iframeContainer}>
-	<button
-		bind:this={iframeClosePopup}
-		on:click={() => closePopup(iframePopupsOpen[iframePopupsOpen.length - 1])}
-		class="absolute top-2 right-2 text-2xl dark:text-neutral-300 font-bold hidden"
-	>
+	<button bind:this={iframeClosePopup} on:click={() => closePopup(iframePopupsOpen[iframePopupsOpen.length - 1])} class="absolute top-2 right-2 text-2xl dark:text-neutral-300 font-bold hidden">
 		✕
 	</button>
 	{#each instances as instance (instance.context)}

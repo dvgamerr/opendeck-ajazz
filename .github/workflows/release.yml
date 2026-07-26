@@ -27,8 +27,6 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-    env:
-      DENO_DIR: deno_cache
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,23 +46,20 @@ jobs:
         with:
           workspaces: "./src-tauri -> target"
 
-      - name: Setup Deno
-        uses: denoland/setup-deno@v1
-        with:
-          deno-version: v2.x
-
-      - name: Cache Deno dependencies
+      - name: Cache Bun
         uses: actions/cache@v4
         with:
-          path: ${{ env.DENO_DIR }}
-          key: ${{ hashFiles('deno.lock') }}
+          path: ~/.bun/install/cache
+          key: linux-app-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            linux-app-bun-${{ hashFiles('bun.lock') }}
 
       - name: Install frontend dependencies
-        run: deno install
+        run: bun install --frozen-lockfile
 
       - name: Build Tauri App
         run: |
-          NO_STRIP=true deno task tauri build
+          NO_STRIP=true bun run tauri build
 
       - name: Create Release
         run: PLATFORM=linux ./scripts/release.sh

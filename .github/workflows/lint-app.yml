@@ -24,24 +24,22 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-    env:
-      DENO_DIR: deno_cache
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Cache Deno dependencies
+      - name: Cache Bun
         uses: actions/cache@v4
         with:
-          path: deno_cache
-          key: linux-app-deno-${{ hashFiles('deno.lock') }}
+          path: ~/.bun/install/cache
+          key: linux-app-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            linux-app-deno-${{ hashFiles('deno.lock') }}
+            linux-app-bun-${{ hashFiles('bun.lock') }}
 
       - name: Install frontend dependencies
-        run: deno install
+        run: bun install --frozen-lockfile
 
       - name: Lint app
         run: ./scripts/lint-app.sh

@@ -26,10 +26,7 @@
 			let action = JSON.parse(dataTransfer?.getData("action"));
 			if (
 				(parentUuid == "opendeck.multiaction" && !action.supported_in_multi_actions) ||
-				(
-					parentUuid == "opendeck.toggleaction" &&
-					(action.uuid == "opendeck.multiaction" || action.uuid == "opendeck.toggleaction")
-				)
+				(parentUuid == "opendeck.toggleaction" && (action.uuid == "opendeck.multiaction" || action.uuid == "opendeck.toggleaction"))
 			) {
 				return;
 			}
@@ -52,24 +49,17 @@
 />
 
 <div class="px-6 pt-6 pb-4 dark:text-neutral-300">
-	<button class="float-right text-xl" on:click={() => $inspectedParentAction = null}>✕</button>
+	<button class="float-right text-xl" on:click={() => ($inspectedParentAction = null)}>✕</button>
 	<h1 class="font-semibold text-2xl">{parentUuid == "opendeck.toggleaction" ? "Toggle Action" : "Multi Action"}</h1>
 </div>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
-<div
-	class="flex flex-col h-80 overflow-scroll"
-	on:click={() => inspectedInstance.set(null)}
-	on:keyup={() => inspectedInstance.set(null)}
->
+<div class="flex flex-col h-80 overflow-scroll" on:click={() => inspectedInstance.set(null)} on:keyup={() => inspectedInstance.set(null)}>
 	{#each children as instance, index}
 		<div class="flex flex-row items-center mx-4 my-1 bg-neutral-100 dark:bg-neutral-800 rounded-md">
 			<Key inslot={instance} context={null} active={false} scale={3 / 4} />
 			<p class="ml-4 text-xl dark:text-neutral-400">{instance.action.name}</p>
-			<button
-				class="ml-auto mr-10"
-				on:click={() => removeInstance(index)}
-			>
+			<button class="ml-auto mr-10" on:click={() => removeInstance(index)}>
 				<Trash size="32" color={document.documentElement.classList.contains("dark") ? "#C0BFBC" : "#77767B"} />
 			</button>
 		</div>

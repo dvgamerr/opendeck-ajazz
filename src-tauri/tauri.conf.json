@@ -1,8 +1,8 @@
 {
 	"$schema": "https://schema.tauri.app/config/2",
 	"build": {
-		"beforeBuildCommand": "deno task build",
-		"beforeDevCommand": "deno task dev",
+		"beforeBuildCommand": "bun x --bun --no-install vite build",
+		"beforeDevCommand": "bun x --bun --no-install vite dev",
 		"frontendDist": "../build",
 		"devUrl": "http://localhost:5173"
 	},
@@ -30,11 +30,7 @@
 		"shortDescription": "Use stream controllers",
 		"longDescription": "opendeck-ajazz is a desktop application for using ajazz stream controller devices on Linux.",
 		"category": "Productivity",
-		"icon": [
-			"icons/icon.png",
-			"icons/icon.icns",
-			"icons/icon.ico"
-		],
+		"icon": ["icons/icon.png", "icons/icon.icns", "icons/icon.ico"],
 		"macOS": {
 			"exceptionDomain": "localhost",
 			"signingIdentity": "-"

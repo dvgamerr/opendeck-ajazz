@@ -66,19 +66,17 @@ are satisfied to build opendeck-ajazz from source.
 
 You'll also need `libudev` installed for your distribution.
 
-After running `deno install`,
-you can use `deno task tauri dev` and
-`NO_STRIP=true deno task tauri build` to work with opendeck-ajazz.
+After running `bun install --frozen-lockfile`,
+you can use `bun run tauri dev` and
+`NO_STRIP=true bun run tauri build` to work with opendeck-ajazz.
 
 Before each commit, please ensure that all of the following are completed:
 
 1. Rust code has been linted using `cargo clippy` and it discovers no violations
 2. Rust code has been formatted using `cargo fmt`
-3. TypeScript code has been checked using `deno check` and
-   linted using `deno lint` and they discover no violations
-4. Svelte code has been linted using `deno task check` and
-   it discovers no violations
-5. Frontend code has been formatted using `deno fmt --unstable-component`
+3. TypeScript and Svelte code has been checked using `bun run check`
+4. Frontend code has been linted using `bun run lint`
+5. Frontend code has been formatted using `bun run format`
 
 ## License
 

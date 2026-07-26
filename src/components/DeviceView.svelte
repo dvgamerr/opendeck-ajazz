@@ -62,22 +62,17 @@
 
 {#key device}
 	<!-- svelte-ignore a11y-no-static-element-interactions -->
-	<div
-		class="flex flex-col"
-		class:hidden={$inspectedParentAction || selectedDevice != device.id}
-		on:click={() => inspectedInstance.set(null)}
-		on:keyup={() => inspectedInstance.set(null)}
-	>
+	<div class="flex flex-col" class:hidden={$inspectedParentAction || selectedDevice != device.id} on:click={() => inspectedInstance.set(null)} on:keyup={() => inspectedInstance.set(null)}>
 		<div class="flex flex-col">
 			{#each { length: device.rows } as _, r}
 				<div class="flex flex-row">
 					{#each { length: device.columns } as _, c}
 						<Key
-							context={{ device: device.id, profile: profile.id, controller: "Keypad", position: (r * device.columns) + c }}
-							bind:inslot={profile.keys[(r * device.columns) + c]}
+							context={{ device: device.id, profile: profile.id, controller: "Keypad", position: r * device.columns + c }}
+							bind:inslot={profile.keys[r * device.columns + c]}
 							on:dragover={handleDragOver}
-							on:drop={(event) => handleDrop(event, "Keypad", (r * device.columns) + c)}
-							on:dragstart={(event) => handleDragStart(event, "Keypad", (r * device.columns) + c)}
+							on:drop={(event) => handleDrop(event, "Keypad", r * device.columns + c)}
+							on:dragstart={(event) => handleDragStart(event, "Keypad", r * device.columns + c)}
 							{handlePaste}
 							size={device.id.startsWith("sd-") && device.rows == 4 && device.columns == 8 ? 192 : 144}
 						/>
@@ -86,18 +81,43 @@
 			{/each}
 		</div>
 
-		<div class="flex flex-row">
-			{#each { length: device.encoders } as _, i}
-				<Key
-					context={{ device: device.id, profile: profile.id, controller: "Encoder", position: i }}
-					bind:inslot={profile.sliders[i]}
-					on:dragover={handleDragOver}
-					on:drop={(event) => handleDrop(event, "Encoder", i)}
-					on:dragstart={(event) => handleDragStart(event, "Encoder", i)}
-					{handlePaste}
-					size={device.id.startsWith("sd-") && device.rows == 4 && device.columns == 8 ? 192 : 144}
-				/>
-			{/each}
-		</div>
+		{#if device.type == 7}
+			<div class="mt-3 flex overflow-hidden rounded-xl border-2 border-neutral-400 bg-black dark:border-neutral-700">
+				{#each { length: device.encoders } as _, i}
+					<Key
+						context={{ device: device.id, profile: profile.id, controller: "Encoder", position: i }}
+						bind:inslot={profile.sliders[i]}
+						on:dragover={handleDragOver}
+						on:drop={(event) => handleDrop(event, "Encoder", i)}
+						on:dragstart={(event) => handleDragStart(event, "Encoder", i)}
+						{handlePaste}
+						appearance="touch"
+						renderWidth={176}
+						renderHeight={112}
+					/>
+				{/each}
+			</div>
+			<div class="mt-4 flex" aria-hidden="true">
+				{#each { length: device.encoders } as _}
+					<div class="flex w-40 justify-center">
+						<div class="h-16 w-16 rounded-full border-4 border-neutral-700 bg-gradient-to-br from-neutral-500 to-neutral-800 shadow-lg ring-2 ring-black"></div>
+					</div>
+				{/each}
+			</div>
+		{:else}
+			<div class="flex flex-row">
+				{#each { length: device.encoders } as _, i}
+					<Key
+						context={{ device: device.id, profile: profile.id, controller: "Encoder", position: i }}
+						bind:inslot={profile.sliders[i]}
+						on:dragover={handleDragOver}
+						on:drop={(event) => handleDrop(event, "Encoder", i)}
+						on:dragstart={(event) => handleDragStart(event, "Encoder", i)}
+						{handlePaste}
+						size={device.id.startsWith("sd-") && device.rows == 4 && device.columns == 8 ? 192 : 144}
+					/>
+				{/each}
+			</div>
+		{/if}
 	</div>
 {/key}

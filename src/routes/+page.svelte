@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageProps } from "./$types";
 	import type { DeviceInfo } from "$lib/DeviceInfo";
 	import type { Profile } from "$lib/Profile";
 
@@ -15,6 +16,8 @@
 	import ProfileManager from "../components/ProfileManager.svelte";
 	import PropertyInspectorView from "../components/PropertyInspectorView.svelte";
 	import SettingsView from "../components/SettingsView.svelte";
+
+	export let params: PageProps["params"];
 
 	let devices: { [id: string]: DeviceInfo } = {};
 	let selectedDevice: string;
@@ -52,19 +55,10 @@
 	</div>
 	<hr class="my-2 border dark:border-neutral-700" />
 	{#if !$inspectedParentAction}
-		<DeviceSelector
-			bind:devices
-			bind:value={selectedDevice}
-			bind:selectedProfiles
-			bind:this={$deviceSelector}
-		/>
+		<DeviceSelector bind:devices bind:value={selectedDevice} bind:selectedProfiles bind:this={$deviceSelector} />
 		{#key selectedDevice}
 			{#if selectedDevice && devices[selectedDevice]}
-				<ProfileManager
-					bind:device={devices[selectedDevice]}
-					bind:profile={selectedProfiles[selectedDevice]}
-					bind:this={$profileManager}
-				/>
+				<ProfileManager bind:device={devices[selectedDevice]} bind:profile={selectedProfiles[selectedDevice]} bind:this={$profileManager} />
 			{/if}
 		{/key}
 	{/if}

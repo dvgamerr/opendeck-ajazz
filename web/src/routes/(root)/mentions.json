@@ -25,21 +25,11 @@
 	},
 	{
 		"title": "Bun",
-		"contents": ["The runtime used to build the website."],
+		"contents": ["The runtime used to build the application frontend and website."],
 		"links": [
 			{
 				"text": "Website",
 				"url": "https://bun.com"
-			}
-		]
-	},
-	{
-		"title": "Deno",
-		"contents": ["The runtime used to build the application frontend."],
-		"links": [
-			{
-				"text": "Website",
-				"url": "https://deno.com"
 			}
 		]
 	},

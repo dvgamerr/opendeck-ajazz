@@ -38,7 +38,7 @@
 				{/each}
 			</select>
 		</div>
-		<button class="ml-2 mr-1 float-right text-xl dark:text-neutral-300" on:click={() => showEditor = false}>✕</button>
+		<button class="ml-2 mr-1 float-right text-xl dark:text-neutral-300" on:click={() => (showEditor = false)}>✕</button>
 	</div>
 	<div class="flex flex-row">
 		<div class="flex flex-col justify-center items-center">
@@ -55,10 +55,7 @@
 					alt="State {state}"
 				/>
 			</button>
-			<button
-				on:click={() => colourInput.click()}
-				class="mt-0.5 px-0.5 text-sm text-neutral-700 dark:text-neutral-400 bg-neutral-200 dark:bg-neutral-600 rounded-md outline-hidden"
-			>
+			<button on:click={() => colourInput.click()} class="mt-0.5 px-0.5 text-sm text-neutral-700 dark:text-neutral-400 bg-neutral-200 dark:bg-neutral-600 rounded-md outline-hidden">
 				Solid colour
 			</button>
 		</div>
@@ -103,29 +100,14 @@
 		<div class="flex flex-col pl-2 pr-1 pt-4 pb-2 space-y-2">
 			<div class="flex flex-row space-x-2">
 				<span> Text </span>
-				<textarea
-					bind:value={instance.states[state].text}
-					rows="1"
-					class="w-full px-1 dark:text-neutral-300 bg-neutral-200 dark:bg-neutral-600 rounded-md outline-hidden resize-none"
-				/>
+				<textarea bind:value={instance.states[state].text} rows="1" class="w-full px-1 dark:text-neutral-300 bg-neutral-200 dark:bg-neutral-600 rounded-md outline-hidden resize-none" />
 			</div>
 			<div class="flex flex-row items-center">
 				<span class="mr-2"> Colour </span>
-				<input
-					type="color"
-					bind:value={instance.states[state].colour}
-					class="mr-2 px-0.5 bg-neutral-200 dark:bg-neutral-600 rounded-md outline-hidden"
-				/>
+				<input type="color" bind:value={instance.states[state].colour} class="mr-2 px-0.5 bg-neutral-200 dark:bg-neutral-600 rounded-md outline-hidden" />
 				<span class="mr-2"> Show </span>
-				<input
-					type="checkbox"
-					bind:checked={instance.states[state].show}
-					class="mr-4 mt-1 scale-125"
-				/>
-				<select
-					bind:value={instance.states[state].alignment}
-					class="px-1! py-0.5!"
-				>
+				<input type="checkbox" bind:checked={instance.states[state].show} class="mr-4 mt-1 scale-125" />
+				<select bind:value={instance.states[state].alignment} class="px-1! py-0.5!">
 					<option value="top">Top</option>
 					<option value="middle">Middle</option>
 					<option value="bottom">Bottom</option>
@@ -156,28 +138,20 @@
 				<input
 					type="checkbox"
 					bind:checked={bold}
-					on:change={() => instance.states[state].style = bold && italic ? "Bold Italic" : bold ? "Bold" : italic ? "Italic" : "Regular"}
+					on:change={() => (instance.states[state].style = bold && italic ? "Bold Italic" : bold ? "Bold" : italic ? "Italic" : "Regular")}
 					class="mr-4 mt-1 scale-125"
 				/>
 				<span class="mr-3 italic"> I </span>
 				<input
 					type="checkbox"
 					bind:checked={italic}
-					on:change={() => instance.states[state].style = bold && italic ? "Bold Italic" : bold ? "Bold" : italic ? "Italic" : "Regular"}
+					on:change={() => (instance.states[state].style = bold && italic ? "Bold Italic" : bold ? "Bold" : italic ? "Italic" : "Regular")}
 					class="mr-4 mt-1 scale-125"
 				/>
 				<span class="mr-3 underline"> U </span>
-				<input
-					type="checkbox"
-					bind:checked={instance.states[state].underline}
-					class="mr-4 mt-1 scale-125"
-				/>
+				<input type="checkbox" bind:checked={instance.states[state].underline} class="mr-4 mt-1 scale-125" />
 				<span class="mr-2"> Size </span>
-				<input
-					type="number"
-					bind:value={instance.states[state].size}
-					class="px-0.5 w-14 dark:text-neutral-300 bg-neutral-200 dark:bg-neutral-600 rounded-md outline-hidden"
-				/>
+				<input type="number" bind:value={instance.states[state].size} class="px-0.5 w-14 dark:text-neutral-300 bg-neutral-200 dark:bg-neutral-600 rounded-md outline-hidden" />
 			</div>
 		</div>
 	</div>

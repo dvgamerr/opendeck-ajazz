@@ -5,9 +5,6 @@ RUN apt-get update
 RUN apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libudev-dev xdg-utils
 # Most scripts assume basic tools are available
 RUN apt-get install -y bash curl git build-essential 7zip unzip
-# Deno for running TypeScript directly
-RUN curl -fsSL https://deno.land/install.sh | bash
-ENV PATH="/root/.deno/bin:${PATH}"
 # bun.sh for JavaScript/TypeScript runtime
 RUN curl -fsSL https://bun.sh/install | bash
 ENV PATH="/root/.bun/bin:${PATH}"
