@@ -6,7 +6,7 @@
 
 	import Key from "./Key.svelte";
 
-	import { inspectedInstance, inspectedParentAction } from "$lib/propertyInspector";
+	import { inspectedInstance, inspectedParentAction, openContextMenu } from "$lib/propertyInspector";
 
 	import { invoke } from "@tauri-apps/api/core";
 
@@ -14,32 +14,50 @@
 	export let profile: Profile;
 
 	export let selectedDevice: string;
+	const actionMime = "application/x-opendeck-action";
 
 	function handleDragStart({ dataTransfer }: DragEvent, controller: string, position: number) {
+		if (!dataTransfer) return;
+		openContextMenu.set(null);
+		dataTransfer.effectAllowed = "copyMove";
 		dataTransfer?.setData("controller", controller);
 		dataTransfer?.setData("position", position.toString());
 	}
 
 	function handleDragOver(event: DragEvent) {
+		if (!event.dataTransfer) return false;
 		event.preventDefault();
+		event.dataTransfer.dropEffect = event.dataTransfer.types.includes("controller") ? "move" : "copy";
 		return true;
 	}
 
-	async function handleDrop({ dataTransfer }: DragEvent, controller: string, position: number) {
+	async function handleDrop(event: DragEvent, controller: string, position: number) {
+		event.preventDefault();
+		event.stopPropagation();
+		openContextMenu.set(null);
+		const { dataTransfer } = event;
+		if (!dataTransfer) return;
+
 		let context = { device: device.id, profile: profile.id, controller, position };
 		let array = controller == "Encoder" ? profile.sliders : profile.keys;
-		if (dataTransfer?.getData("action")) {
-			let action = JSON.parse(dataTransfer?.getData("action"));
+		const serializedAction = dataTransfer.getData(actionMime) || dataTransfer.getData("action");
+		if (serializedAction) {
+			let action = JSON.parse(serializedAction);
+			if (!action.controllers?.includes(controller)) return;
 			if (array[position]) {
-				return;
+				await invoke("remove_instance", { context: array[position]!.context });
 			}
-			array[position] = await invoke("create_instance", { context, action });
-			profile = profile;
-		} else if (dataTransfer?.getData("controller")) {
-			let oldArray = dataTransfer?.getData("controller") == "Encoder" ? profile.sliders : profile.keys;
-			let oldPosition = parseInt(dataTransfer?.getData("position"));
+			const instance: ActionInstance | null = await invoke("create_instance", { context, action });
+			if (instance) {
+				array[position] = instance;
+				profile = profile;
+			}
+		} else if (dataTransfer.getData("controller")) {
+			let oldArray = dataTransfer.getData("controller") == "Encoder" ? profile.sliders : profile.keys;
+			let oldPosition = parseInt(dataTransfer.getData("position"));
+			if (oldArray == array && oldPosition == position) return;
 			let response: ActionInstance = await invoke("move_instance", {
-				source: { device: device.id, profile: profile.id, controller: dataTransfer?.getData("controller"), position: oldPosition },
+				source: { device: device.id, profile: profile.id, controller: dataTransfer.getData("controller"), position: oldPosition },
 				destination: context,
 				retain: false,
 			});

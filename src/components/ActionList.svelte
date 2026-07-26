@@ -4,6 +4,7 @@
 	import MagnifyingGlass from "phosphor-svelte/lib/MagnifyingGlass";
 
 	import { getWebserverUrl } from "$lib/ports";
+	import { openContextMenu } from "$lib/propertyInspector";
 	import { localisations } from "$lib/settings";
 	import { PRODUCT_NAME } from "$lib/singletons";
 
@@ -19,6 +20,18 @@
 
 	let query: string = "";
 	let controller: "Keypad" | "Encoder" = "Keypad";
+	const actionMime = "application/x-opendeck-action";
+
+	function handleActionDragStart(event: DragEvent, action: Action) {
+		if (!event.dataTransfer) return;
+		openContextMenu.set(null);
+		const serialized = JSON.stringify(action);
+		event.dataTransfer.effectAllowed = "copy";
+		event.dataTransfer.setData(actionMime, serialized);
+		// Retain the original payload for compatibility with existing drop targets.
+		event.dataTransfer.setData("action", serialized);
+	}
+
 	let filteredCategories: [string, { icon?: string; actions: Action[] }][] = [];
 	$: {
 		let lowerCaseQuery = query.toLowerCase().trim();
@@ -78,7 +91,7 @@
 						role="group"
 						draggable="true"
 						title={$localisations?.[action.plugin]?.[action.uuid]?.Tooltip ?? action.tooltip}
-						on:dragstart={(event) => event.dataTransfer?.setData("action", JSON.stringify(action))}
+						on:dragstart={(event) => handleActionDragStart(event, action)}
 					>
 						<img
 							src={!action.icon.startsWith("opendeck/") ? getWebserverUrl(action.icon) : action.icon.replace("opendeck", "")}

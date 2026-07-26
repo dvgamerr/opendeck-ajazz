@@ -57,7 +57,13 @@
 	async function contextMenu(event: MouseEvent) {
 		event.preventDefault();
 		if (!active || !context) return;
-		$openContextMenu = { context, x: event.x, y: event.y };
+		const width = 128;
+		const height = slot ? 120 : 44;
+		$openContextMenu = {
+			context,
+			x: Math.max(8, Math.min(event.clientX, window.innerWidth - width - 8)),
+			y: Math.max(8, Math.min(event.clientY, window.innerHeight - height - 8)),
+		};
 	}
 
 	let showEditor = false;
@@ -178,7 +184,7 @@
 
 {#if $openContextMenu && $openContextMenu?.context == context}
 	<div
-		class="absolute text-sm font-semibold w-32 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-700 border-2 dark:border-neutral-600 rounded-lg divide-y z-10"
+		class="fixed z-50 w-32 divide-y rounded-lg border-2 bg-neutral-100 text-sm font-semibold shadow-xl dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-300"
 		style={`left: ${$openContextMenu.x}px; top: ${$openContextMenu.y}px;`}
 	>
 		{#if !slot}

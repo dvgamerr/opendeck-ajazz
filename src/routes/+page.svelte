@@ -31,7 +31,7 @@
 	initPortBase();
 </script>
 
-<svelte:window on:dragover={(event) => event.preventDefault()} on:drop={(event) => event.preventDefault()} />
+<svelte:window on:contextmenu|preventDefault on:dragover={(event) => event.preventDefault()} on:drop={(event) => event.preventDefault()} />
 
 <main class="workspace-shell">
 	<header class="workspace-toolbar">
