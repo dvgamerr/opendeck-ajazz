@@ -134,10 +134,7 @@
 	export let size = 144;
 	$: canvasWidth = renderWidth ?? size;
 	$: canvasHeight = renderHeight ?? size;
-	$: canvasStyle =
-		resolvedAppearance == "touch"
-			? "width: 160px; height: 100px;"
-			: `transform: scale(${(112 / size) * scale});`;
+	$: canvasStyle = resolvedAppearance == "touch" ? "width: 160px; height: 100px;" : `transform: scale(${(112 / size) * scale});`;
 	$: (async () => {
 		const sl = structuredClone(slot);
 		if (!sl) {
