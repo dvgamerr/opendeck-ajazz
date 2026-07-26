@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Heart from "phosphor-svelte/lib/Heart";
 	import Star from "phosphor-svelte/lib/Star";
 	import Popup from "./Popup.svelte";
 	import Tooltip from "./Tooltip.svelte";
@@ -9,14 +8,10 @@
 
 	import { invoke } from "@tauri-apps/api/core";
 	import { listen } from "@tauri-apps/api/event";
+	import { onMount } from "svelte";
 
 	let showPopup: boolean;
 	let buildInfo: string;
-	(async () => buildInfo = await invoke("get_build_info"))();
-
-	settings.subscribe((settings) => {
-		if (settings) updateTheme(settings.darktheme);
-	});
 
 	function updateTheme(darktheme: boolean) {
 		if (darktheme) {
@@ -26,27 +21,50 @@
 		}
 	}
 
-	listen("device_brightness", ({ payload }: { payload: { action: string; value: number } }) => {
-		if (!$settings) return;
-		let value = $settings.brightness;
-		switch (payload.action) {
-			case "increase":
-				value += payload.value;
-				break;
-			case "decrease":
-				value -= payload.value;
-				break;
-			default:
-				value = payload.value;
-				break;
-		}
-		$settings.brightness = Math.max(0, Math.min(100, value));
+	onMount(() => {
+		let disposed = false;
+		void invoke<string>("get_build_info")
+			.then((value) => {
+				if (!disposed) buildInfo = value;
+			})
+			.catch(() => {});
+		const unsubscribeSettings = settings.subscribe((value) => {
+			if (value) updateTheme(value.darktheme);
+		});
+		let unlistenBrightness: (() => void) | undefined;
+		void listen("device_brightness", ({ payload }: { payload: { action: string; value: number } }) => {
+			if (!$settings) return;
+			let value = $settings.brightness;
+			switch (payload.action) {
+				case "increase":
+					value += payload.value;
+					break;
+				case "decrease":
+					value -= payload.value;
+					break;
+				default:
+					value = payload.value;
+					break;
+			}
+			$settings.brightness = Math.max(0, Math.min(100, value));
+		})
+			.then((unlisten) => {
+				if (disposed) unlisten();
+				else unlistenBrightness = unlisten;
+			})
+			.catch(() => {});
+
+		return () => {
+			disposed = true;
+			unsubscribeSettings();
+			unlistenBrightness?.();
+		};
 	});
 </script>
 
 <button
 	class="p-1 w-1/2 text-sm text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-700 border dark:border-neutral-600 rounded-lg outline-hidden"
-	on:click={() => showPopup = true}
+	on:click={() => (showPopup = true)}
 >
 	Settings
 </button>
@@ -58,7 +76,7 @@
 />
 
 <Popup show={showPopup}>
-	<button class="mr-2 my-1 float-right text-xl dark:text-neutral-300" on:click={() => showPopup = false}>✕</button>
+	<button class="mr-2 my-1 float-right text-xl dark:text-neutral-300" on:click={() => (showPopup = false)}>✕</button>
 	<h2 class="m-2 font-semibold text-xl dark:text-neutral-300">Settings</h2>
 	{#if $settings}
 		<div class="flex flex-row items-center m-2 space-x-2">
@@ -92,13 +110,13 @@
 		<div class="flex flex-row items-center m-2 space-x-2">
 			<span class="dark:text-neutral-400"> Run in background: </span>
 			<input type="checkbox" bind:checked={$settings.background} />
-			<Tooltip> If this option is enabled, {PRODUCT_NAME} will minimise to the tray and run in the background. </Tooltip>
+			<Tooltip>If this option is enabled, {PRODUCT_NAME} will minimise to the tray and run in the background.</Tooltip>
 		</div>
 
 		<div class="flex flex-row items-center m-2 space-x-2">
 			<span class="dark:text-neutral-400"> Start at login: </span>
 			<input type="checkbox" bind:checked={$settings.autolaunch} />
-			<Tooltip> If this option is enabled, {PRODUCT_NAME} will automatically start at login. </Tooltip>
+			<Tooltip>If this option is enabled, {PRODUCT_NAME} will automatically start at login.</Tooltip>
 		</div>
 
 		<div class="flex flex-row items-center m-2 space-x-2">
@@ -116,8 +134,7 @@
 				<span class="dark:text-neutral-400"> Create separate Wine prefixes: </span>
 				<input type="checkbox" bind:checked={$settings.separatewine} />
 				<Tooltip>
-					If this option is enabled, {PRODUCT_NAME} will create a separate Wine prefix for each plugin that runs under Wine. Please note that each Wine prefix is quite large - around 300MB when
-					initialised.
+					If this option is enabled, {PRODUCT_NAME} will create a separate Wine prefix for each plugin that runs under Wine. Please note that each Wine prefix is quite large - around 300MB when initialised.
 				</Tooltip>
 			</div>
 		{/if}
@@ -134,7 +151,7 @@
 		<div class="flex flex-row items-center m-2 space-x-2">
 			<span class="dark:text-neutral-400"> Disable device discovery: </span>
 			<input type="checkbox" bind:checked={$settings.disabledevices} />
-			<Tooltip> This option disables discovery of devices so that they can be managed by other software. </Tooltip>
+			<Tooltip>This option disables discovery of devices so that they can be managed by other software.</Tooltip>
 		</div>
 	{/if}
 

@@ -7,25 +7,37 @@
 	import Popup from "./Popup.svelte";
 
 	import { invoke } from "@tauri-apps/api/core";
-	import { listen } from "@tauri-apps/api/event";
+	import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+	import { onMount } from "svelte";
 
 	let folders: { [name: string]: string[] } = {};
 	let value: string;
+	let disposed = false;
+	let profileRequest = 0;
 	async function getProfiles(device: DeviceInfo) {
-		let profiles: string[] = await invoke("get_profiles", { device: device.id });
-		folders = {};
-		for (const id of profiles) {
-			let folder = id.includes("/") ? id.split("/")[0] : "";
-			if (folders[folder]) folders[folder].push(id);
-			else folders[folder] = [id];
+		const request = ++profileRequest;
+		const deviceId = device.id;
+		try {
+			const profiles: string[] = await invoke("get_profiles", { device: deviceId });
+			const selected: Profile = await invoke("get_selected_profile", { device: deviceId });
+			if (disposed || request != profileRequest || device.id != deviceId) return;
+
+			const nextFolders: { [name: string]: string[] } = {};
+			for (const id of profiles) {
+				const folder = id.includes("/") ? id.split("/")[0] : "";
+				if (nextFolders[folder]) nextFolders[folder].push(id);
+				else nextFolders[folder] = [id];
+			}
+			folders = nextFolders;
+			profile = selected;
+			value = profile.id;
+			oldValue = value;
+		} catch {
+			// The selected device may disconnect while profiles are loading.
 		}
-		profile = await invoke("get_selected_profile", { device: device.id });
-		value = profile.id;
-		oldValue = value;
 	}
 
 	export let device: DeviceInfo;
-	getProfiles(device);
 
 	export let profile: Profile;
 	export async function setProfile(id: string) {
@@ -34,8 +46,15 @@
 			value = id;
 			return;
 		}
-		await invoke("set_selected_profile", { device: device.id, id });
-		profile = await invoke("get_selected_profile", { device: device.id });
+		const deviceId = device.id;
+		try {
+			await invoke("set_selected_profile", { device: deviceId, id });
+			const selected: Profile = await invoke("get_selected_profile", { device: deviceId });
+			if (disposed || device.id != deviceId) return;
+			profile = selected;
+		} catch {
+			return;
+		}
 
 		let folder = id.includes("/") ? id.split("/")[0] : "";
 		if (folders[folder]) {
@@ -43,12 +62,6 @@
 		} else folders[folder] = [id];
 		folders = folders;
 	}
-
-	listen("rerender_images", async () => {
-		try {
-			profile = await invoke("get_selected_profile", { device: device.id });
-		} catch {}
-	});
 
 	async function deleteProfile(id: string) {
 		for (const devices of Object.values(applicationProfiles)) {
@@ -78,13 +91,52 @@
 	let nameInput: HTMLInputElement;
 
 	let showApplicationManager: boolean = false;
-	let applications: string[];
-	let applicationProfiles: { [appName: string]: { [device: string]: string } };
-	(async () => {
-		applications = await invoke("get_applications");
-		applicationProfiles = await invoke("get_application_profiles");
-	})();
-	listen("applications", ({ payload }: { payload: string[] }) => applications = payload);
+	let applications: string[] = [];
+	let applicationProfiles: { [appName: string]: { [device: string]: string } } = {};
+	let applicationProfilesLoaded = false;
+	let lastSavedApplicationProfiles = "";
+
+	function cleanApplicationProfiles(value: { [appName: string]: { [device: string]: string } }) {
+		return Object.fromEntries(Object.entries(value).filter(([_, devices]) => Object.values(devices).some((profile) => profile)));
+	}
+
+	onMount(() => {
+		const unlisteners: UnlistenFn[] = [];
+		const keep = (promise: Promise<UnlistenFn>) => {
+			void promise.then((unlisten) => (disposed ? unlisten() : unlisteners.push(unlisten)));
+		};
+
+		void getProfiles(device);
+		void Promise.all([invoke<string[]>("get_applications"), invoke<{ [appName: string]: { [device: string]: string } }>("get_application_profiles")])
+			.then(([loadedApplications, loadedProfiles]) => {
+				if (disposed) return;
+				applications = loadedApplications;
+				applicationProfiles = cleanApplicationProfiles(loadedProfiles);
+				lastSavedApplicationProfiles = JSON.stringify(applicationProfiles);
+				applicationProfilesLoaded = true;
+			})
+			.catch(() => {});
+
+		keep(
+			listen("rerender_images", async () => {
+				const deviceId = device.id;
+				try {
+					const selected: Profile = await invoke("get_selected_profile", { device: deviceId });
+					if (!disposed && device.id == deviceId) profile = selected;
+				} catch {
+					// The device or profile can disappear while the event is in flight.
+				}
+			}),
+		);
+		keep(listen("applications", ({ payload }: { payload: string[] }) => (applications = payload)));
+
+		return () => {
+			disposed = true;
+			profileRequest += 1;
+			unlisteners.forEach((unlisten) => unlisten());
+		};
+	});
+
 	let applicationsAddAppName: string = "opendeck_select_application";
 	let applicationsAddProfile: string = "opendeck_select_profile";
 	$: {
@@ -96,9 +148,14 @@
 		}
 	}
 	$: {
-		if (applicationProfiles) {
-			applicationProfiles = Object.fromEntries(Object.entries(applicationProfiles).filter(([_, devices]) => Object.values(devices).filter((v) => v).length != 0));
-			invoke("set_application_profiles", { value: applicationProfiles });
+		if (applicationProfilesLoaded) {
+			const cleaned = cleanApplicationProfiles(applicationProfiles);
+			const serialized = JSON.stringify(cleaned);
+			if (serialized != lastSavedApplicationProfiles) {
+				lastSavedApplicationProfiles = serialized;
+				applicationProfiles = cleaned;
+				void invoke("set_application_profiles", { value: applicationProfiles }).catch(() => {});
+			}
 		}
 	}
 </script>
@@ -132,7 +189,7 @@
 />
 
 <Popup show={showPopup}>
-	<button class="mr-1 float-right text-xl dark:text-neutral-300" on:click={() => showPopup = false}>✕</button>
+	<button class="mr-1 float-right text-xl dark:text-neutral-300" on:click={() => (showPopup = false)}>✕</button>
 	<h2 class="text-xl font-semibold dark:text-neutral-300">{device.name}</h2>
 
 	<div class="flex flex-row mt-2 mb-1">
@@ -140,7 +197,7 @@
 			bind:this={nameInput}
 			pattern="[a-zA-Z0-9_ ]+(\/[a-zA-Z0-9_ ]+)?"
 			class="grow p-2 dark:text-neutral-300 invalid:text-red-400 dark:bg-neutral-700 rounded-l-md outline-hidden"
-			placeholder='Profile ID (e.g. "folder/profile")'
+			placeholder="Profile ID (e.g. &quot;folder/profile&quot;)"
 		/>
 
 		<button
@@ -156,10 +213,7 @@
 			Create
 		</button>
 
-		<button
-			class="ml-2 px-4 flex items-center dark:text-neutral-300 bg-neutral-200 dark:bg-neutral-900 rounded-md outline-hidden"
-			on:click={() => showApplicationManager = true}
-		>
+		<button class="ml-2 px-4 flex items-center dark:text-neutral-300 bg-neutral-200 dark:bg-neutral-900 rounded-md outline-hidden" on:click={() => (showApplicationManager = true)}>
 			<Browsers size={24} />
 		</button>
 	</div>
@@ -174,14 +228,8 @@
 					<input type="radio" bind:group={value} value={profile} />
 					<span class="dark:text-neutral-400"> {id ? profile.split("/")[1] : profile} </span>
 					{#if profile != value}
-						<button
-							on:click={() => deleteProfile(profile)}
-							class="float-right"
-						>
-							<Trash
-								size="20"
-								color={document.documentElement.classList.contains("dark") ? "#C0BFBC" : "#77767B"}
-							/>
+						<button on:click={() => deleteProfile(profile)} class="float-right">
+							<Trash size="20" color={document.documentElement.classList.contains("dark") ? "#C0BFBC" : "#77767B"} />
 						</button>
 					{/if}
 				</div>
@@ -191,13 +239,13 @@
 </Popup>
 
 <Popup show={showApplicationManager}>
-	<button class="mr-1 float-right text-xl dark:text-neutral-300" on:click={() => showApplicationManager = false}>✕</button>
+	<button class="mr-1 float-right text-xl dark:text-neutral-300" on:click={() => (showApplicationManager = false)}>✕</button>
 	<h2 class="text-xl font-semibold dark:text-neutral-300">{device.name}</h2>
 	<span class="text-sm dark:text-neutral-400">If your application isn't listed, try switching to it and back again.</span>
 	<span class="text-sm dark:text-neutral-400">The 'default profile' will activate when the focussed application has no profile associated with it.</span>
 
 	<table class="w-full dark:text-neutral-300 divide-y">
-		{#each Object.entries(applicationProfiles).sort((a, b) => a[0] == "opendeck_default" ? -1 : b[0] == "opendeck_default" ? 1 : a[0].localeCompare(b[0])) as [appName, devices]}
+		{#each Object.entries(applicationProfiles).sort((a, b) => (a[0] == "opendeck_default" ? -1 : b[0] == "opendeck_default" ? 1 : a[0].localeCompare(b[0]))) as [appName, devices]}
 			{#if devices[device.id]}
 				<tr class="h-12">
 					<td>{appName == "opendeck_default" ? "Default profile" : appName}:</td>

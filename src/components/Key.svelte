@@ -13,7 +13,8 @@
 	import { CanvasLock, renderImage } from "$lib/rendererHelper";
 
 	import { invoke } from "@tauri-apps/api/core";
-	import { listen } from "@tauri-apps/api/event";
+	import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+	import { onMount } from "svelte";
 
 	export let context: Context | null;
 
@@ -28,7 +29,11 @@
 
 	export let active: boolean = true;
 	export let scale: number = 1;
+	export let appearance: "auto" | "key" | "encoder" | "touch" = "auto";
+	export let renderWidth: number | undefined = undefined;
+	export let renderHeight: number | undefined = undefined;
 	let pressed: boolean = false;
+	$: resolvedAppearance = appearance == "auto" ? (context?.controller == "Encoder" ? "encoder" : "key") : appearance;
 
 	let state: ActionState | undefined;
 	$: {
@@ -38,14 +43,6 @@
 			state = slot.states[slot.current_state];
 		}
 	}
-
-	listen("update_state", ({ payload }: { payload: { context: string; contents: ActionInstance | null } }) => {
-		if (payload.context == slot?.context) slot = payload.contents;
-	});
-
-	listen("key_moved", ({ payload }: { payload: { context: Context; pressed: boolean } }) => {
-		if (JSON.stringify(context) == JSON.stringify(payload.context)) pressed = payload.pressed;
-	});
 
 	function select(event: MouseEvent | KeyboardEvent) {
 		if (event instanceof MouseEvent && event.ctrlKey) return;
@@ -86,24 +83,61 @@
 	let showAlert: boolean = false;
 	let showOk: boolean = false;
 	let timeouts: number[] = [];
-	listen("show_alert", ({ payload }: { payload: string }) => {
-		if (!slot || payload != slot.context) return;
-		timeouts.forEach(clearTimeout);
-		showOk = false;
-		showAlert = true;
-		timeouts.push(setTimeout(() => showAlert = false, 1.5e3));
-	});
-	listen("show_ok", ({ payload }: { payload: string }) => {
-		if (!slot || payload != slot.context) return;
-		timeouts.forEach(clearTimeout);
-		showAlert = false;
-		showOk = true;
-		timeouts.push(setTimeout(() => showOk = false, 1.5e3));
+	onMount(() => {
+		let disposed = false;
+		const unlisteners: UnlistenFn[] = [];
+		const keep = (promise: Promise<UnlistenFn>) => {
+			void promise.then((unlisten) => (disposed ? unlisten() : unlisteners.push(unlisten)));
+		};
+
+		keep(
+			listen("update_state", ({ payload }: { payload: { context: string; contents: ActionInstance | null } }) => {
+				if (payload.context == slot?.context) slot = payload.contents;
+			}),
+		);
+		keep(
+			listen("key_moved", ({ payload }: { payload: { context: Context; pressed: boolean } }) => {
+				if (JSON.stringify(context) == JSON.stringify(payload.context)) pressed = payload.pressed;
+			}),
+		);
+		keep(
+			listen("show_alert", ({ payload }: { payload: string }) => {
+				if (!slot || payload != slot.context) return;
+				timeouts.forEach(clearTimeout);
+				timeouts = [];
+				showOk = false;
+				showAlert = true;
+				timeouts.push(window.setTimeout(() => (showAlert = false), 1.5e3));
+			}),
+		);
+		keep(
+			listen("show_ok", ({ payload }: { payload: string }) => {
+				if (!slot || payload != slot.context) return;
+				timeouts.forEach(clearTimeout);
+				timeouts = [];
+				showAlert = false;
+				showOk = true;
+				timeouts.push(window.setTimeout(() => (showOk = false), 1.5e3));
+			}),
+		);
+
+		return () => {
+			disposed = true;
+			unlisteners.forEach((unlisten) => unlisten());
+			timeouts.forEach(clearTimeout);
+			timeouts = [];
+		};
 	});
 
 	let canvas: HTMLCanvasElement;
 	let lock = new CanvasLock();
 	export let size = 144;
+	$: canvasWidth = renderWidth ?? size;
+	$: canvasHeight = renderHeight ?? size;
+	$: canvasStyle =
+		resolvedAppearance == "touch"
+			? "width: 160px; height: 100px;"
+			: `transform: scale(${(112 / size) * scale});`;
 	$: (async () => {
 		const sl = structuredClone(slot);
 		if (!sl) {
@@ -125,13 +159,17 @@
 
 <canvas
 	bind:this={canvas}
-	class="relative -m-2 border-2 dark:border-neutral-700 rounded-md outline-none outline-offset-2 outline-blue-500"
+	class="relative block outline-none outline-offset-2 outline-blue-500"
+	class:-m-2={resolvedAppearance != "touch"}
+	class:border-2={resolvedAppearance != "touch"}
+	class:dark:border-neutral-700={resolvedAppearance != "touch"}
+	class:rounded-md={resolvedAppearance == "key"}
 	class:outline-solid={slot && $inspectedInstance == slot.context}
-	class:-m-[2.06rem]={size == 192}
-	class:rounded-full!={context?.controller == "Encoder"}
-	width={size}
-	height={size}
-	style={`transform: scale(${(112 / size) * scale});`}
+	class:-m-[2.06rem]={resolvedAppearance != "touch" && size == 192}
+	class:rounded-full!={resolvedAppearance == "encoder"}
+	width={canvasWidth}
+	height={canvasHeight}
+	style={canvasStyle}
 	draggable={slot != null}
 	on:dragstart
 	on:dragover
@@ -147,32 +185,20 @@
 		style={`left: ${$openContextMenu.x}px; top: ${$openContextMenu.y}px;`}
 	>
 		{#if !slot}
-			<button
-				class="flex flex-row p-2 w-full cursor-pointer items-center"
-				on:click={paste}
-			>
+			<button class="flex flex-row p-2 w-full cursor-pointer items-center" on:click={paste}>
 				<Clipboard size="18" color={document.documentElement.classList.contains("dark") ? "#DEDDDA" : "#77767B"} />
 				<span class="ml-2"> Paste </span>
 			</button>
 		{:else}
-			<button
-				class="flex flex-row p-2 w-full cursor-pointer items-center"
-				on:click={edit}
-			>
+			<button class="flex flex-row p-2 w-full cursor-pointer items-center" on:click={edit}>
 				<Pencil size="18" color={document.documentElement.classList.contains("dark") ? "#DEDDDA" : "#77767B"} />
 				<span class="ml-2"> Edit </span>
 			</button>
-			<button
-				class="flex flex-row p-2 w-full cursor-pointer items-center"
-				on:click={() => copiedContext.set(context)}
-			>
+			<button class="flex flex-row p-2 w-full cursor-pointer items-center" on:click={() => copiedContext.set(context)}>
 				<Copy size="18" color={document.documentElement.classList.contains("dark") ? "#DEDDDA" : "#77767B"} />
 				<span class="ml-2"> Copy </span>
 			</button>
-			<button
-				class="flex flex-row p-2 w-full cursor-pointer items-center"
-				on:click={clear}
-			>
+			<button class="flex flex-row p-2 w-full cursor-pointer items-center" on:click={clear}>
 				<Trash size="18" color="#F66151" />
 				<span class="ml-2"> Delete </span>
 			</button>
