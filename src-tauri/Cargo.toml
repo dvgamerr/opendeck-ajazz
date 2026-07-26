@@ -34,7 +34,7 @@ fs2 = "0.4"
 open = "5.3"
 tauri-plugin-log = "2.4"
 tauri-plugin-cors-fetch = "4.0"
-tauri-plugin-single-instance = { version = "2.2", features = ["deep-link"] }
+tauri-plugin-single-instance = { version = "=2.2.2", features = ["deep-link"] }
 tauri-plugin-autostart = "2.3"
 tauri-plugin-dialog = "2.2"
 tauri-plugin-deep-link = "2.3"
