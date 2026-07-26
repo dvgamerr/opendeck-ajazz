@@ -2,44 +2,42 @@
 <html lang="en">
 	<head>
 		<script>
-			let update = () => {};
+			let save = () => {};
 
-			function connectElgatoStreamDeckSocket(inPort, inPropertyInspectorUUID, inRegisterEvent, inInfo, inActionInfo) {
-				const websocket = new WebSocket("ws://localhost:" + inPort);
-				inActionInfo = JSON.parse(inActionInfo);
-				websocket.onopen = () => {
-					websocket.send(JSON.stringify({
-						event: inRegisterEvent,
-						uuid: inPropertyInspectorUUID,
-					}));
-				};
-
+			function connectElgatoStreamDeckSocket(port, uuid, registerEvent, info, actionInfo) {
+				const socket = new WebSocket("ws://localhost:" + port);
+				const action = JSON.parse(actionInfo);
 				const step = document.getElementById("step");
-				const stepDisplay = document.getElementById("step-display");
-				step.value = (inActionInfo.payload.settings.step ?? 2).toString();
-				stepDisplay.innerText = step.value;
-
-				update = () => {
-					stepDisplay.innerText = step.value;
-					websocket.send(JSON.stringify({
-						event: "setSettings",
-						context: inActionInfo.context,
-						payload: {
-							step: parseInt(step.value),
-						},
-					}));
-				};
+				const output = document.getElementById("step-output");
+				step.value = action.payload.settings.step ?? 2;
+				output.textContent = step.value + "%";
+				socket.onopen = () => socket.send(JSON.stringify({ event: registerEvent, uuid }));
+				save = () => socket.send(JSON.stringify({
+					event: "setSettings",
+					context: action.context,
+					payload: { step: Number(step.value) },
+				}));
 			}
 		</script>
 		<link rel="stylesheet" href="sdpi.css" />
+		<link rel="stylesheet" href="pixel-settings.css" />
 	</head>
 	<body>
-		<div class="sdpi-item">
-			<div class="sdpi-item-label">Step (<span id="step-display"></span>%)</div>
-			<input id="step" oninput="update();" class="sdpi-item-value" type="range" min="1" max="20" />
+		<header class="pixel-header">
+			<span>VOL + DEVICE</span>
+			<small>ENCODER CONTROL</small>
+		</header>
+		<div class="gesture-grid">
+			<div><b>↻</b><span>VOLUME</span></div>
+			<div><b>1X</b><span>NEXT</span></div>
+			<div><b>2X</b><span>PREVIOUS</span></div>
 		</div>
-		<p style="padding: 0 0.75rem">
-			Turn the dial to change the Windows system volume. Press it to mute or unmute. The current level and output device are rendered at the LCD zone's native 176×112 ratio.
-		</p>
+		<div class="sdpi-item">
+			<div class="sdpi-item-label">STEP <output id="step-output"></output></div>
+			<input id="step" class="sdpi-item-value" type="range" min="1" max="20"
+				oninput="document.getElementById('step-output').textContent=value+'%'"
+				onchange="save()" />
+		</div>
+		<p class="pixel-note">LCD // 176×112 // BLACK PIXEL MODE</p>
 	</body>
 </html>

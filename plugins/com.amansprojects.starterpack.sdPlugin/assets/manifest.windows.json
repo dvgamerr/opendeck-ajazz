@@ -42,23 +42,13 @@
 		},
 		{
 			"Icon": "icons/systemVolume",
-			"Name": "System Volume",
+			"Name": "Volume + Sound Device",
 			"States": [{ "Image": "actionDefaultImage", "ShowTitle": false }],
 			"Controllers": ["Encoder"],
 			"SupportedInMultiActions": false,
-			"Tooltip": "Turn to adjust system volume and press to mute",
+			"Tooltip": "Turn for volume, press for next output, double-press for previous output",
 			"UUID": "com.amansprojects.starterpack.systemvolume",
 			"PropertyInspectorPath": "propertyInspector/systemVolume.html"
-		},
-		{
-			"Icon": "icons/switchSoundDevice",
-			"Name": "Switch Sound Device",
-			"States": [{ "Image": "actionDefaultImage", "ShowTitle": false }],
-			"Controllers": ["Encoder"],
-			"SupportedInMultiActions": false,
-			"Tooltip": "Turn or press to switch the default sound output device",
-			"UUID": "com.amansprojects.starterpack.switchsounddevice",
-			"PropertyInspectorPath": "propertyInspector/switchSoundDevice.html"
 		}
 	]
 }

@@ -1,7 +1,18 @@
 use openaction::*;
+use std::{
+	collections::HashMap,
+	fmt::Write,
+	sync::{LazyLock, Mutex},
+	time::{Duration, Instant},
+};
+use ttf_parser::OutlineBuilder;
 
 const SYSTEM_VOLUME_ACTION: &str = "com.amansprojects.starterpack.systemvolume";
-const SWITCH_SOUND_DEVICE_ACTION: &str = "com.amansprojects.starterpack.switchsounddevice";
+const DOUBLE_PRESS: Duration = Duration::from_secs(1);
+static LAST_PRESSES: LazyLock<Mutex<HashMap<String, Instant>>> = LazyLock::new(Default::default);
+static PIXELOID: LazyLock<ttf_parser::Face<'static>> = LazyLock::new(|| {
+	ttf_parser::Face::parse(include_bytes!("../assets/fonts/PixeloidSans.ttf"), 0).unwrap()
+});
 
 #[derive(Clone, Debug)]
 struct AudioSnapshot {
@@ -19,26 +30,27 @@ fn setting_u8(settings: &SettingsValue, key: &str, fallback: u8) -> u8 {
 		.unwrap_or(fallback)
 }
 
-fn setting_direction(settings: &SettingsValue) -> i32 {
-	if settings
-		.as_object()
-		.and_then(|settings| settings.get("direction"))
-		.and_then(|value| value.as_str())
-		== Some("previous")
-	{
-		-1
-	} else {
-		1
+fn driver_name(value: &str) -> &str {
+	let value = value.trim();
+	for prefix in ["Speakers", "Speaker", "Headphones", "Headphone"] {
+		if value
+			.get(..prefix.len())
+			.is_some_and(|start| start.eq_ignore_ascii_case(prefix))
+		{
+			let rest = &value[prefix.len()..];
+			if rest
+				.chars()
+				.next()
+				.is_some_and(|c| c.is_whitespace() || "()[]-:".contains(c))
+			{
+				let name = rest.trim_matches(|c: char| c.is_whitespace() || "()[]-:".contains(c));
+				if !name.is_empty() {
+					return name;
+				}
+			}
+		}
 	}
-}
-
-fn escape_xml(value: &str) -> String {
 	value
-		.replace('&', "&amp;")
-		.replace('<', "&lt;")
-		.replace('>', "&gt;")
-		.replace('"', "&quot;")
-		.replace('\'', "&apos;")
 }
 
 fn truncate_label(value: &str, max_chars: usize) -> String {
@@ -52,8 +64,6 @@ fn truncate_label(value: &str, max_chars: usize) -> String {
 }
 
 fn percent_encode(value: &str) -> String {
-	use std::fmt::Write;
-
 	let mut encoded = String::with_capacity(value.len() * 2);
 	for byte in value.bytes() {
 		if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~') {
@@ -65,45 +75,102 @@ fn percent_encode(value: &str) -> String {
 	encoded
 }
 
-fn snapshot_image(snapshot: &AudioSnapshot, device_changed: bool) -> String {
-	let volume = snapshot.volume.min(100);
-	let bar_width = u16::from(volume) * 128 / 100;
-	let accent = if snapshot.muted {
-		"#fb7185"
-	} else if device_changed {
-		"#38bdf8"
-	} else {
-		"#a78bfa"
+struct GlyphPath {
+	data: String,
+	x: f32,
+}
+
+impl OutlineBuilder for GlyphPath {
+	fn move_to(&mut self, x: f32, y: f32) {
+		let _ = write!(self.data, "M{} {}", (x + self.x) as i32, y as i32);
+	}
+	fn line_to(&mut self, x: f32, y: f32) {
+		let _ = write!(self.data, "L{} {}", (x + self.x) as i32, y as i32);
+	}
+	fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
+		let _ = write!(
+			self.data,
+			"Q{} {} {} {}",
+			(x1 + self.x) as i32,
+			y1 as i32,
+			(x + self.x) as i32,
+			y as i32
+		);
+	}
+	fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
+		let _ = write!(
+			self.data,
+			"C{} {} {} {} {} {}",
+			(x1 + self.x) as i32,
+			y1 as i32,
+			(x2 + self.x) as i32,
+			y2 as i32,
+			(x + self.x) as i32,
+			y as i32
+		);
+	}
+	fn close(&mut self) {
+		self.data.push('Z');
+	}
+}
+
+fn text_path(text: &str, center: f32, baseline: u8, size: u8, fill: &str) -> String {
+	let face = &*PIXELOID;
+	let scale = f32::from(size) / f32::from(face.units_per_em());
+	let mut path = GlyphPath {
+		data: String::with_capacity(text.len() * 80),
+		x: 0.0,
 	};
+	for character in text.chars() {
+		if let Some(glyph) = face
+			.glyph_index(character)
+			.or_else(|| face.glyph_index('?'))
+		{
+			face.outline_glyph(glyph, &mut path);
+			path.x += f32::from(face.glyph_hor_advance(glyph).unwrap_or_default());
+		}
+	}
+	let x = center - path.x * scale / 2.0;
+	format!(
+		r##"<path d="{}" transform="translate({x:.2} {baseline}) scale({scale:.5} -{scale:.5})" fill="{fill}"/>"##,
+		path.data
+	)
+}
+
+fn snapshot_image(snapshot: &AudioSnapshot, event: &str) -> String {
+	let volume = snapshot.volume.min(100);
+	let bar_width = u16::from(volume) * 140 / 100;
+	let accent = if snapshot.muted { "#ff3155" } else { "#20e3ff" };
 	let status = if snapshot.muted {
 		"MUTED".to_owned()
 	} else {
 		format!("{volume}%")
 	};
-	let device_name = escape_xml(&truncate_label(&snapshot.device_name, 25));
+	let device_name = truncate_label(&driver_name(&snapshot.device_name).to_uppercase(), 22);
+	let status_path = text_path(&status, 105.0, 62, 29, accent);
+	let device_path = text_path(&device_name, 88.0, 102, 10, "#a7b0c0");
 	let speaker_waves = if snapshot.muted {
-		r##"<path d="M31 42l16 16m0-16L31 58" stroke="#fb7185" stroke-width="4" stroke-linecap="round"/>"##
+		r##"<path d="M34 42h5v5h5v5h-5v5h-5v-5h-5v-5h5z" fill="#ff3155"/>"##
 	} else {
-		r##"<path d="M34 44c4 3 4 9 0 12M39 39c8 7 8 18 0 24" fill="none" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>"##
+		r##"<path d="M32 42h5v5h4v10h-4v5h-5v-5h4V47h-4zM42 37h5v5h4v20h-4v5h-5v-5h4V42h-4z" fill="#f8fafc"/>"##
 	};
-	let switch_badge = if device_changed {
-		r##"<path d="M145 24h18l-5-5m5 5-5 5M163 34h-18l5-5m-5 5 5 5" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>"##
+	let event_badge = if event.is_empty() {
+		String::new()
 	} else {
-		""
+		text_path(event, 149.0, 15, 9, "#facc15")
 	};
 
 	let svg = format!(
-		r##"<svg xmlns="http://www.w3.org/2000/svg" width="176" height="112" viewBox="0 0 176 112">
-<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#111827"/><stop offset="1" stop-color="#020617"/></linearGradient></defs>
-<rect width="176" height="112" rx="10" fill="url(#bg)"/>
-<rect x="1" y="1" width="174" height="110" rx="9" fill="none" stroke="#334155"/>
-<path d="M14 47h9l12-10v30L23 57h-9z" fill="#f8fafc"/>
+		r##"<svg xmlns="http://www.w3.org/2000/svg" width="176" height="112" viewBox="0 0 176 112" shape-rendering="crispEdges">
+<rect width="176" height="112" fill="#000"/>
+<path d="M10 45h9v14h-9zM19 41h5v22h-5zM24 36h5v32h-5z" fill="#f8fafc"/>
 {speaker_waves}
-<text x="65" y="62" fill="{accent}" font-family="Arial, sans-serif" font-size="28" font-weight="700">{status}</text>
-{switch_badge}
-<rect x="24" y="77" width="128" height="8" rx="4" fill="#334155"/>
-<rect x="24" y="77" width="{bar_width}" height="8" rx="4" fill="{accent}"/>
-<text x="88" y="101" text-anchor="middle" fill="#cbd5e1" font-family="Arial, sans-serif" font-size="11">{device_name}</text>
+{status_path}
+{event_badge}
+<rect x="18" y="75" width="140" height="8" fill="#20242c"/>
+<rect x="18" y="75" width="{bar_width}" height="8" fill="{accent}"/>
+<path d="M31 75v8m14-8v8m14-8v8m14-8v8m14-8v8m14-8v8m14-8v8m14-8v8m14-8v8" stroke="#000" stroke-width="2"/>
+{device_path}
 </svg>"##
 	);
 
@@ -113,15 +180,11 @@ fn snapshot_image(snapshot: &AudioSnapshot, device_changed: bool) -> String {
 async fn render_snapshot(
 	context: String,
 	snapshot: AudioSnapshot,
-	device_changed: bool,
+	event: &str,
 	outbound: &mut OutboundEventManager,
 ) -> EventHandlerResult {
 	outbound
-		.set_image(
-			context,
-			Some(snapshot_image(&snapshot, device_changed)),
-			None,
-		)
+		.set_image(context, Some(snapshot_image(&snapshot, event)), None)
 		.await?;
 	Ok(())
 }
@@ -144,45 +207,37 @@ pub async fn rotate_volume(
 	let step = setting_u8(&event.payload.settings, "step", 2).clamp(1, 20);
 	let delta = i32::from(event.payload.ticks) * i32::from(step);
 	match platform::change_volume(delta) {
-		Ok(snapshot) => render_snapshot(context, snapshot, false, outbound).await,
+		Ok(snapshot) => render_snapshot(context, snapshot, "", outbound).await,
 		Err(error) => report_error(context, error, outbound).await,
 	}
 }
 
-pub async fn toggle_mute(
+pub async fn press_device(
 	event: DialPressEvent,
 	outbound: &mut OutboundEventManager,
 ) -> EventHandlerResult {
 	let context = event.context.clone();
-	match platform::toggle_mute() {
-		Ok(snapshot) => render_snapshot(context, snapshot, false, outbound).await,
-		Err(error) => report_error(context, error, outbound).await,
-	}
-}
-
-pub async fn switch_on_press(
-	event: DialPressEvent,
-	outbound: &mut OutboundEventManager,
-) -> EventHandlerResult {
-	let context = event.context.clone();
-	let direction = setting_direction(&event.payload.settings);
+	let now = Instant::now();
+	let double = {
+		let mut presses = LAST_PRESSES.lock().unwrap();
+		presses.retain(|_, time| now.duration_since(*time) <= DOUBLE_PRESS);
+		let double = presses.remove(&context).is_some();
+		if !double {
+			presses.insert(context.clone(), now);
+		}
+		double
+	};
+	let direction = if double { -2 } else { 1 };
 	match platform::switch_device(direction) {
-		Ok(snapshot) => render_snapshot(context, snapshot, true, outbound).await,
-		Err(error) => report_error(context, error, outbound).await,
-	}
-}
-
-pub async fn switch_on_rotate(
-	event: DialRotateEvent,
-	outbound: &mut OutboundEventManager,
-) -> EventHandlerResult {
-	let context = event.context.clone();
-	let direction = i32::from(event.payload.ticks.signum());
-	if direction == 0 {
-		return Ok(());
-	}
-	match platform::switch_device(direction) {
-		Ok(snapshot) => render_snapshot(context, snapshot, true, outbound).await,
+		Ok(snapshot) => {
+			render_snapshot(
+				context,
+				snapshot,
+				if double { "PREV" } else { "NEXT" },
+				outbound,
+			)
+			.await
+		}
 		Err(error) => report_error(context, error, outbound).await,
 	}
 }
@@ -192,19 +247,11 @@ pub async fn refresh(
 	context: String,
 	outbound: &mut OutboundEventManager,
 ) -> EventHandlerResult {
-	if !matches!(action, SYSTEM_VOLUME_ACTION | SWITCH_SOUND_DEVICE_ACTION) {
+	if action != SYSTEM_VOLUME_ACTION {
 		return Ok(());
 	}
 	match platform::snapshot() {
-		Ok(snapshot) => {
-			render_snapshot(
-				context,
-				snapshot,
-				action == SWITCH_SOUND_DEVICE_ACTION,
-				outbound,
-			)
-			.await
-		}
+		Ok(snapshot) => render_snapshot(context, snapshot, "", outbound).await,
 		Err(error) => report_error(context, error, outbound).await,
 	}
 }
@@ -370,20 +417,6 @@ mod platform {
 		endpoint_snapshot(&endpoint.device, endpoint.name)
 	}
 
-	pub fn toggle_mute() -> Result<AudioSnapshot> {
-		let _apartment = ComApartment::enter()?;
-		let endpoint = default_endpoint(&enumerator()?)?;
-		// SAFETY: IAudioEndpointVolume is supported by active render endpoints.
-		let volume: IAudioEndpointVolume = unsafe { endpoint.device.Activate(CLSCTX_ALL, None) }
-			.context("failed to open the endpoint volume control")?;
-		// SAFETY: The COM interface remains alive and a null event context is supported.
-		unsafe {
-			let muted = volume.GetMute()?.as_bool();
-			volume.SetMute(!muted, std::ptr::null())?;
-		}
-		endpoint_snapshot(&endpoint.device, endpoint.name)
-	}
-
 	pub fn switch_device(direction: i32) -> Result<AudioSnapshot> {
 		let _apartment = ComApartment::enter()?;
 		let enumerator = enumerator()?;
@@ -397,7 +430,7 @@ mod platform {
 			.position(|endpoint| endpoint.id == current.id)
 			.unwrap_or(0);
 		let target_index =
-			(current_index as i32 + direction.signum()).rem_euclid(endpoints.len() as i32) as usize;
+			(current_index as i32 + direction).rem_euclid(endpoints.len() as i32) as usize;
 		let target = &endpoints[target_index];
 		let target_id = HSTRING::from(&target.id);
 		let target_id = PCWSTR(target_id.as_ptr());
@@ -433,10 +466,6 @@ mod platform {
 		unsupported()
 	}
 
-	pub fn toggle_mute() -> Result<AudioSnapshot> {
-		unsupported()
-	}
-
 	pub fn switch_device(_direction: i32) -> Result<AudioSnapshot> {
 		unsupported()
 	}
@@ -444,24 +473,39 @@ mod platform {
 
 #[cfg(test)]
 mod tests {
-	use super::{AudioSnapshot, snapshot_image};
+	use super::{AudioSnapshot, driver_name, snapshot_image};
 
 	#[test]
-	fn lcd_image_uses_native_zone_dimensions_and_escapes_device_name() {
+	fn lcd_image_uses_native_zone_dimensions_and_font_paths() {
 		let image = snapshot_image(
 			&AudioSnapshot {
-				device_name: "Speakers & Headphones".to_owned(),
+				device_name: "Speakers (Realtek Audio)".to_owned(),
 				volume: 67,
 				muted: false,
 			},
-			false,
+			"",
 		);
 
 		assert!(image.starts_with("data:image/svg+xml,"));
 		assert!(image.contains("width%3D%22176%22"));
 		assert!(image.contains("height%3D%22112%22"));
-		assert!(image.contains("Speakers%20%26amp%3B%20Headphones"));
-		assert!(image.contains("67%25"));
+		assert!(image.contains("transform%3D%22translate"));
+		assert!(!image.contains("%3Ctext"));
+		assert!(image.len() < 50_000);
+	}
+
+	#[test]
+	fn output_type_is_removed_from_device_name() {
+		assert_eq!(
+			driver_name("Speakers (Realtek(R) Audio)"),
+			"Realtek(R) Audio"
+		);
+		assert_eq!(driver_name("Headphones - WH-1000XM5"), "WH-1000XM5");
+		assert_eq!(
+			driver_name("NVIDIA High Definition Audio"),
+			"NVIDIA High Definition Audio"
+		);
+		assert_eq!(driver_name("Speakerphone USB"), "Speakerphone USB");
 	}
 
 	#[test]
@@ -472,7 +516,7 @@ mod tests {
 				volume: 50,
 				muted: true,
 			},
-			false,
+			"",
 		);
 		let switched = snapshot_image(
 			&AudioSnapshot {
@@ -480,12 +524,14 @@ mod tests {
 				volume: 50,
 				muted: false,
 			},
-			true,
+			"NEXT",
 		);
 
-		assert!(muted.contains("MUTED"));
-		assert!(muted.contains("%23fb7185"));
-		assert!(switched.contains("%2338bdf8"));
+		assert!(muted.contains("%23ff3155"));
+		assert!(switched.contains("%23facc15"));
+		assert!(switched.contains("%23000"));
+		assert!(!switched.contains("linearGradient"));
+		assert!(!switched.contains("rx%3D"));
 	}
 
 	#[cfg(windows)]

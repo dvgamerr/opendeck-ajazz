@@ -15,6 +15,7 @@ enigo = { version = "0.5", features = ["serde", "x11rb", "wayland", "libei"] }
 tokio = { version = "1.45", features = ["full"] }
 os_pipe = "1.2"
 anyhow = "1.0"
+ttf-parser = "0.25"
 
 [target.'cfg(windows)'.dependencies]
 com-policy-config = "0.6"

@@ -102,10 +102,7 @@ impl openaction::ActionEventHandler for ActionEventHandler {
 				device_brightness::up(event, outbound).await
 			}
 			"com.amansprojects.starterpack.systemvolume" => {
-				audio::toggle_mute(event, outbound).await
-			}
-			"com.amansprojects.starterpack.switchsounddevice" => {
-				audio::switch_on_press(event, outbound).await
+				audio::press_device(event, outbound).await
 			}
 			_ => Ok(()),
 		}
@@ -126,9 +123,6 @@ impl openaction::ActionEventHandler for ActionEventHandler {
 			}
 			"com.amansprojects.starterpack.systemvolume" => {
 				audio::rotate_volume(event, outbound).await
-			}
-			"com.amansprojects.starterpack.switchsounddevice" => {
-				audio::switch_on_rotate(event, outbound).await
 			}
 			_ => Ok(()),
 		}
