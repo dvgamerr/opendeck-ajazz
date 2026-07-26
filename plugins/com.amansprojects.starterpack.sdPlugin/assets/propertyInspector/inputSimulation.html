@@ -1,6 +1,7 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
+		<meta charset="utf-8" />
 		<script>
 			let update = () => {};
 
@@ -8,10 +9,12 @@
 				const websocket = new WebSocket("ws://localhost:" + inPort);
 				inActionInfo = JSON.parse(inActionInfo);
 				websocket.onopen = () => {
-					websocket.send(JSON.stringify({
-						event: inRegisterEvent,
-						uuid: inPropertyInspectorUUID,
-					}));
+					websocket.send(
+						JSON.stringify({
+							event: inRegisterEvent,
+							uuid: inPropertyInspectorUUID,
+						}),
+					);
 				};
 
 				const down = document.getElementById("down");
@@ -32,46 +35,52 @@
 				}
 
 				update = () => {
-					websocket.send(JSON.stringify({
-						event: "setSettings",
-						context: inActionInfo.context,
-						payload: {
-							down: down.value,
-							up: up.value,
-							anticlockwise: anticlockwise.value,
-							clockwise: clockwise.value,
-						},
-					}));
+					websocket.send(
+						JSON.stringify({
+							event: "setSettings",
+							context: inActionInfo.context,
+							payload: {
+								down: down.value,
+								up: up.value,
+								anticlockwise: anticlockwise.value,
+								clockwise: clockwise.value,
+							},
+						}),
+					);
 				};
 			}
 		</script>
 		<link rel="stylesheet" href="sdpi.css" />
-		<link rel="stylesheet" href="pixel-settings.css" />
+		<link rel="stylesheet" href="app-settings.css" />
 	</head>
 	<body>
+		<header class="options-header">
+			<span>Input Simulation</span>
+			<small>Action options</small>
+		</header>
 		<div type="textarea" class="sdpi-item">
 			<div class="sdpi-item-label" id="down-label">Key down</div>
 			<span class="sdpi-item-value textarea">
-				<textarea oninput="update();" id="down" style="font-family: monospace" placeholder="Input to be executed on key down"></textarea>
+				<textarea oninput="update()" id="down" style="font-family: monospace" placeholder="Input to be executed on key down"></textarea>
 			</span>
 		</div>
 		<div type="textarea" class="sdpi-item">
 			<div class="sdpi-item-label" id="up-label">Key up</div>
 			<span class="sdpi-item-value textarea">
-				<textarea oninput="update();" id="up" style="font-family: monospace" placeholder="Input to be executed on key up"></textarea>
+				<textarea oninput="update()" id="up" style="font-family: monospace" placeholder="Input to be executed on key up"></textarea>
 			</span>
 		</div>
 		<div id="encoder" style="display: none">
 			<div type="textarea" class="sdpi-item">
 				<div class="sdpi-item-label">Dial rotate anticlockwise</div>
 				<span class="sdpi-item-value textarea">
-					<textarea oninput="update();" id="anticlockwise" style="font-family: monospace" placeholder="Input to be executed on dial rotate anticlockwise"></textarea>
+					<textarea oninput="update()" id="anticlockwise" style="font-family: monospace" placeholder="Input to be executed on dial rotate anticlockwise"></textarea>
 				</span>
 			</div>
 			<div type="textarea" class="sdpi-item">
 				<div class="sdpi-item-label">Dial rotate clockwise</div>
 				<span class="sdpi-item-value textarea">
-					<textarea oninput="update();" id="clockwise" style="font-family: monospace" placeholder="Input to be executed on dial rotate clockwise"></textarea>
+					<textarea oninput="update()" id="clockwise" style="font-family: monospace" placeholder="Input to be executed on dial rotate clockwise"></textarea>
 				</span>
 			</div>
 		</div>
@@ -90,8 +99,8 @@
 	Key(Control, Release),
 ]</code>
 			<p>
-				As you can see, <code>Vertical</code> is the default for the <code>Scroll</code> action if an axis is not specified,
-				<code>Click</code> (press followed by release) is the default for the <code>Button</code> and <code>Key</code> actions if a direction is not specified, and so on.
+				As you can see, <code>Vertical</code> is the default for the <code>Scroll</code> action if an axis is not specified, <code>Click</code> (press followed by release) is the default for the
+				<code>Button</code> and <code>Key</code> actions if a direction is not specified, and so on.
 			</p>
 			<!-- prettier-ignore -->
 			<p>

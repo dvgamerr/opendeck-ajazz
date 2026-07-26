@@ -1,6 +1,7 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
+		<meta charset="utf-8" />
 		<script>
 			let save = () => {};
 
@@ -12,20 +13,23 @@
 				step.value = action.payload.settings.step ?? 2;
 				output.textContent = step.value + "%";
 				socket.onopen = () => socket.send(JSON.stringify({ event: registerEvent, uuid }));
-				save = () => socket.send(JSON.stringify({
-					event: "setSettings",
-					context: action.context,
-					payload: { step: Number(step.value) },
-				}));
+				save = () =>
+					socket.send(
+						JSON.stringify({
+							event: "setSettings",
+							context: action.context,
+							payload: { step: Number(step.value) },
+						}),
+					);
 			}
 		</script>
 		<link rel="stylesheet" href="sdpi.css" />
-		<link rel="stylesheet" href="pixel-settings.css" />
+		<link rel="stylesheet" href="app-settings.css" />
 	</head>
 	<body>
-		<header class="pixel-header">
-			<span>VOL + DEVICE</span>
-			<small>ENCODER CONTROL</small>
+		<header class="options-header">
+			<span>Volume + Sound Device</span>
+			<small>Encoder options</small>
 		</header>
 		<div class="gesture-grid">
 			<div><b>↻</b><span>VOLUME</span></div>
@@ -34,10 +38,8 @@
 		</div>
 		<div class="sdpi-item">
 			<div class="sdpi-item-label">STEP <output id="step-output"></output></div>
-			<input id="step" class="sdpi-item-value" type="range" min="1" max="20"
-				oninput="document.getElementById('step-output').textContent=value+'%'"
-				onchange="save()" />
+			<input id="step" class="sdpi-item-value" type="range" min="1" max="20" oninput="document.getElementById('step-output').textContent = value + '%'" onchange="save()" />
 		</div>
-		<p class="pixel-note">LCD // 176×112 // BLACK PIXEL MODE</p>
+		<p class="options-note">Adjust the amount changed by each dial step.</p>
 	</body>
 </html>

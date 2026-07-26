@@ -66,6 +66,16 @@
 		};
 	}
 
+	function portalToBody(node: HTMLElement) {
+		document.body.appendChild(node);
+
+		return {
+			destroy() {
+				node.remove();
+			},
+		};
+	}
+
 	let showEditor = false;
 	function edit() {
 		showEditor = true;
@@ -184,7 +194,8 @@
 
 {#if $openContextMenu && $openContextMenu?.context == context}
 	<div
-		class="fixed z-50 w-32 divide-y rounded-lg border-2 bg-neutral-100 text-sm font-semibold shadow-xl dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-300"
+		use:portalToBody
+		class="fixed z-[1000] w-32 divide-y rounded-lg border-2 bg-neutral-100 text-sm font-semibold shadow-xl dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-300"
 		style={`left: ${$openContextMenu.x}px; top: ${$openContextMenu.y}px;`}
 	>
 		{#if !slot}

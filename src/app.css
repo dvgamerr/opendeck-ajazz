@@ -68,11 +68,12 @@ select {
 }
 
 .app-root {
-	@apply flex h-screen min-h-0 w-full overflow-hidden bg-neutral-100 text-neutral-900 dark:bg-[#202020] dark:text-neutral-100;
+	@apply grid h-screen min-h-0 w-full overflow-hidden bg-neutral-100 text-neutral-900 dark:bg-[#202020] dark:text-neutral-100;
+	grid-template-columns: minmax(0, 1fr) 21rem;
 }
 
 .workspace-shell {
-	@apply flex min-w-0 flex-1 flex-col bg-neutral-100 dark:bg-[#292929];
+	@apply relative flex min-h-0 min-w-0 flex-col bg-neutral-100 dark:bg-[#292929];
 }
 
 .workspace-toolbar {
@@ -84,7 +85,7 @@ select {
 }
 
 .device-workspace {
-	@apply flex min-h-0 flex-1 items-center justify-center overflow-auto px-8 py-6;
+	@apply flex min-h-0 flex-1 items-center justify-center overflow-visible;
 	background-image: radial-gradient(circle at center, rgb(255 255 255 / 55%) 0, transparent 58%);
 }
 
@@ -92,12 +93,17 @@ select {
 	background-image: radial-gradient(circle at center, rgb(255 255 255 / 3.5%) 0, transparent 58%);
 }
 
-.property-inspector {
-	@apply h-[36%] min-h-48 shrink-0 overflow-hidden border-t border-neutral-200 bg-white dark:border-[#383838] dark:bg-[#222];
+.options-panel {
+	@apply absolute inset-x-0 bottom-0 z-20 h-96 min-h-0 overflow-hidden border-t border-neutral-200 bg-white shadow-2xl dark:border-[#383838] dark:bg-[#222];
+	display: none;
+}
+
+.options-panel.options-panel-visible {
+	display: flex;
 }
 
 .action-sidebar {
-	@apply flex h-full w-[21rem] shrink-0 flex-col border-l border-neutral-200 bg-white dark:border-[#383838] dark:bg-[#232323];
+	@apply flex h-full min-h-0 w-full flex-col border-l border-neutral-200 bg-white dark:border-[#383838] dark:bg-[#232323];
 }
 
 .sidebar-controls {
@@ -112,8 +118,17 @@ select {
 	@apply flex h-9 items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 text-xs font-medium text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:border-[#424242] dark:bg-[#333] dark:text-neutral-300 dark:hover:bg-[#3d3d3d] dark:hover:text-white;
 }
 
+.device-preview {
+	@apply relative h-full min-h-0 w-full min-w-0 overflow-visible;
+}
+
 .device-chassis {
 	@apply relative flex flex-col rounded-[2rem] border border-neutral-300 bg-gradient-to-b from-neutral-200 to-neutral-300 p-7 shadow-2xl dark:border-[#474747] dark:from-[#363636] dark:to-[#2e2e2e];
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%) scale(var(--preview-scale, 1));
+	transform-origin: center;
 	box-shadow:
 		0 28px 65px rgb(0 0 0 / 22%),
 		inset 0 1px 0 rgb(255 255 255 / 8%);

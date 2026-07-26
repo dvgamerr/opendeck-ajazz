@@ -1,6 +1,7 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
+		<meta charset="utf-8" />
 		<script>
 			let update = () => {};
 
@@ -8,10 +9,12 @@
 				const websocket = new WebSocket("ws://localhost:" + inPort);
 				inActionInfo = JSON.parse(inActionInfo);
 				websocket.onopen = () => {
-					websocket.send(JSON.stringify({
-						event: inRegisterEvent,
-						uuid: inPropertyInspectorUUID,
-					}));
+					websocket.send(
+						JSON.stringify({
+							event: inRegisterEvent,
+							uuid: inPropertyInspectorUUID,
+						}),
+					);
 				};
 
 				if (inActionInfo.payload.controller == "Encoder") {
@@ -32,36 +35,42 @@
 				show.checked = inActionInfo.payload.settings.show ?? false;
 
 				update = () => {
-					websocket.send(JSON.stringify({
-						event: "setSettings",
-						context: inActionInfo.context,
-						payload: {
-							down: down.value,
-							up: up.value,
-							rotate: rotate.value,
-							file: file.value,
-							show: show.checked,
-						},
-					}));
+					websocket.send(
+						JSON.stringify({
+							event: "setSettings",
+							context: inActionInfo.context,
+							payload: {
+								down: down.value,
+								up: up.value,
+								rotate: rotate.value,
+								file: file.value,
+								show: show.checked,
+							},
+						}),
+					);
 				};
 			}
 		</script>
 		<link rel="stylesheet" href="sdpi.css" />
-		<link rel="stylesheet" href="pixel-settings.css" />
+		<link rel="stylesheet" href="app-settings.css" />
 	</head>
 	<body>
+		<header class="options-header">
+			<span>Run Command</span>
+			<small>Action options</small>
+		</header>
 		<div class="sdpi-item">
 			<div class="sdpi-item-label" id="down-label">Key down</div>
-			<input id="down" oninput="update();" class="sdpi-item-value" />
+			<input id="down" oninput="update()" class="sdpi-item-value" />
 		</div>
 		<div class="sdpi-item">
 			<div class="sdpi-item-label" id="up-label">Key up</div>
-			<input id="up" oninput="update();" class="sdpi-item-value" />
+			<input id="up" oninput="update()" class="sdpi-item-value" />
 		</div>
 		<div id="encoder" style="display: none">
 			<div class="sdpi-item">
 				<div class="sdpi-item-label">Dial rotate</div>
-				<input id="rotate" oninput="update();" class="sdpi-item-value" />
+				<input id="rotate" oninput="update()" class="sdpi-item-value" />
 			</div>
 			<p style="padding-left: 0.75rem; padding-right: 0.75rem">
 				Usages of <code>%d</code> will be substituted with the number of ticks turned, where negative values signify counterclockwise rotation and positive values signify clockwise rotation.
@@ -70,11 +79,11 @@
 		<br />
 		<div class="sdpi-item">
 			<div class="sdpi-item-label">Write to path</div>
-			<input id="file" oninput="update();" class="sdpi-item-value" />
+			<input id="file" oninput="update()" class="sdpi-item-value" />
 		</div>
 		<div class="sdpi-item">
 			<div class="sdpi-item-label">Show on key</div>
-			<input id="show" type="checkbox" oninput="update();" class="sdpi-item-value" />
+			<input id="show" type="checkbox" oninput="update()" class="sdpi-item-value" />
 			<label for="show"><span></span></label>
 		</div>
 	</body>

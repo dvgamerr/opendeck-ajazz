@@ -1,6 +1,7 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
+		<meta charset="utf-8" />
 		<script>
 			let update = () => {};
 
@@ -14,10 +15,12 @@
 
 				const websocket = new WebSocket("ws://localhost:" + inPort);
 				websocket.onopen = () => {
-					websocket.send(JSON.stringify({
-						event: inRegisterEvent,
-						uuid: inPropertyInspectorUUID,
-					}));
+					websocket.send(
+						JSON.stringify({
+							event: inRegisterEvent,
+							uuid: inPropertyInspectorUUID,
+						}),
+					);
 				};
 
 				const action = document.getElementById("action");
@@ -29,24 +32,30 @@
 
 				update = () => {
 					valueDisplay.innerText = value.value;
-					websocket.send(JSON.stringify({
-						event: "setSettings",
-						context: inActionInfo.context,
-						payload: {
-							action: action.value,
-							value: parseInt(value.value),
-						},
-					}));
+					websocket.send(
+						JSON.stringify({
+							event: "setSettings",
+							context: inActionInfo.context,
+							payload: {
+								action: action.value,
+								value: parseInt(value.value),
+							},
+						}),
+					);
 				};
 			}
 		</script>
 		<link rel="stylesheet" href="sdpi.css" />
-		<link rel="stylesheet" href="pixel-settings.css" />
+		<link rel="stylesheet" href="app-settings.css" />
 	</head>
 	<body>
+		<header class="options-header">
+			<span>Device Brightness</span>
+			<small>Action options</small>
+		</header>
 		<div class="sdpi-item">
 			<div class="sdpi-item-label">Action</div>
-			<select id="action" onchange="update();" class="sdpi-item-value select">
+			<select id="action" onchange="update()" class="sdpi-item-value select">
 				<option value="set">Set</option>
 				<option value="increase">Increase</option>
 				<option value="decrease">Decrease</option>
@@ -54,7 +63,7 @@
 		</div>
 		<div class="sdpi-item">
 			<div class="sdpi-item-label">Value (<span id="value-display"></span>%)</div>
-			<input id="value" oninput="update();" class="sdpi-item-value" type="range" min="0" max="100" />
+			<input id="value" oninput="update()" class="sdpi-item-value" type="range" min="0" max="100" />
 		</div>
 	</body>
 </html>

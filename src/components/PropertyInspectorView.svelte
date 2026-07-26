@@ -171,7 +171,7 @@
 	}}
 />
 
-<div class="grow overflow-auto bg-white dark:bg-neutral-900 border-t dark:border-neutral-700" bind:this={iframeContainer}>
+<div class="h-full min-h-0 w-full overflow-auto bg-white dark:bg-neutral-900 border-t dark:border-neutral-700" bind:this={iframeContainer}>
 	<button bind:this={iframeClosePopup} on:click={() => closePopup(iframePopupsOpen[iframePopupsOpen.length - 1])} class="absolute top-2 right-2 text-2xl dark:text-neutral-300 font-bold hidden">
 		✕
 	</button>

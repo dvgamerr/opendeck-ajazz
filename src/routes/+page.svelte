@@ -67,7 +67,7 @@
 	</section>
 
 	{#if activeDevice && activeProfile}
-		<section class="property-inspector" class:hidden={!$inspectedInstance}>
+		<section class="options-panel" class:options-panel-visible={Boolean($inspectedInstance)}>
 			<PropertyInspectorView bind:device={activeDevice} bind:profile={activeProfile} />
 		</section>
 	{/if}

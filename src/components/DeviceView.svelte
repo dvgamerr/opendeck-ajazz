@@ -9,12 +9,43 @@
 	import { inspectedInstance, inspectedParentAction, openContextMenu } from "$lib/propertyInspector";
 
 	import { invoke } from "@tauri-apps/api/core";
+	import { onMount } from "svelte";
 
 	export let device: DeviceInfo;
 	export let profile: Profile;
 
 	export let selectedDevice: string;
 	const actionMime = "application/x-opendeck-action";
+	const previewShadowGutter = 32;
+	let previewViewport: HTMLDivElement;
+	let chassis: HTMLDivElement;
+	let previewScale = 1;
+
+	function updatePreviewScale() {
+		if (!previewViewport || !chassis) return;
+
+		// Keep enough space for the chassis shadow without adding layout padding.
+		const availableWidth = Math.max(0, previewViewport.clientWidth - previewShadowGutter * 2);
+		const availableHeight = Math.max(0, previewViewport.clientHeight - previewShadowGutter * 2);
+		const naturalWidth = chassis.offsetWidth;
+		const naturalHeight = chassis.offsetHeight;
+		if (!naturalWidth || !naturalHeight) return;
+		if (!availableWidth || !availableHeight) {
+			previewScale = 0;
+			return;
+		}
+
+		previewScale = Math.min(1, availableWidth / naturalWidth, availableHeight / naturalHeight);
+	}
+
+	onMount(() => {
+		const resizeObserver = new ResizeObserver(updatePreviewScale);
+		resizeObserver.observe(previewViewport);
+		resizeObserver.observe(chassis);
+		updatePreviewScale();
+
+		return () => resizeObserver.disconnect();
+	});
 
 	function handleDragStart({ dataTransfer }: DragEvent, controller: string, position: number) {
 		if (!dataTransfer) return;
@@ -80,62 +111,74 @@
 
 {#key device}
 	<!-- svelte-ignore a11y-no-static-element-interactions -->
-	<div class="device-chassis" class:hidden={$inspectedParentAction || selectedDevice != device.id} on:click={() => inspectedInstance.set(null)} on:keyup={() => inspectedInstance.set(null)}>
-		<div class="device-key-grid">
-			{#each { length: device.rows } as _, r}
-				<div class="flex flex-row">
-					{#each { length: device.columns } as _, c}
+	<div
+		bind:this={previewViewport}
+		class="device-preview"
+		class:hidden={$inspectedParentAction || selectedDevice != device.id}
+		on:click={() => inspectedInstance.set(null)}
+		on:keyup={() => inspectedInstance.set(null)}
+	>
+		<div
+			bind:this={chassis}
+			class="device-chassis"
+			style={`--preview-scale: ${previewScale};`}
+		>
+			<div class="device-key-grid">
+				{#each { length: device.rows } as _, r}
+					<div class="flex flex-row">
+						{#each { length: device.columns } as _, c}
+							<Key
+								context={{ device: device.id, profile: profile.id, controller: "Keypad", position: r * device.columns + c }}
+								bind:inslot={profile.keys[r * device.columns + c]}
+								on:dragover={handleDragOver}
+								on:drop={(event) => handleDrop(event, "Keypad", r * device.columns + c)}
+								on:dragstart={(event) => handleDragStart(event, "Keypad", r * device.columns + c)}
+								{handlePaste}
+								size={device.id.startsWith("sd-") && device.rows == 4 && device.columns == 8 ? 192 : 144}
+							/>
+						{/each}
+					</div>
+				{/each}
+			</div>
+
+			{#if device.type == 7}
+				<div class="touch-strip">
+					{#each { length: device.encoders } as _, i}
 						<Key
-							context={{ device: device.id, profile: profile.id, controller: "Keypad", position: r * device.columns + c }}
-							bind:inslot={profile.keys[r * device.columns + c]}
+							context={{ device: device.id, profile: profile.id, controller: "Encoder", position: i }}
+							bind:inslot={profile.sliders[i]}
 							on:dragover={handleDragOver}
-							on:drop={(event) => handleDrop(event, "Keypad", r * device.columns + c)}
-							on:dragstart={(event) => handleDragStart(event, "Keypad", r * device.columns + c)}
+							on:drop={(event) => handleDrop(event, "Encoder", i)}
+							on:dragstart={(event) => handleDragStart(event, "Encoder", i)}
+							{handlePaste}
+							appearance="touch"
+							renderWidth={176}
+							renderHeight={112}
+						/>
+					{/each}
+				</div>
+				<div class="knob-row" aria-hidden="true">
+					{#each { length: device.encoders } as _}
+						<div class="knob-slot">
+							<div class="device-knob"></div>
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<div class="flex flex-row">
+					{#each { length: device.encoders } as _, i}
+						<Key
+							context={{ device: device.id, profile: profile.id, controller: "Encoder", position: i }}
+							bind:inslot={profile.sliders[i]}
+							on:dragover={handleDragOver}
+							on:drop={(event) => handleDrop(event, "Encoder", i)}
+							on:dragstart={(event) => handleDragStart(event, "Encoder", i)}
 							{handlePaste}
 							size={device.id.startsWith("sd-") && device.rows == 4 && device.columns == 8 ? 192 : 144}
 						/>
 					{/each}
 				</div>
-			{/each}
+			{/if}
 		</div>
-
-		{#if device.type == 7}
-			<div class="touch-strip">
-				{#each { length: device.encoders } as _, i}
-					<Key
-						context={{ device: device.id, profile: profile.id, controller: "Encoder", position: i }}
-						bind:inslot={profile.sliders[i]}
-						on:dragover={handleDragOver}
-						on:drop={(event) => handleDrop(event, "Encoder", i)}
-						on:dragstart={(event) => handleDragStart(event, "Encoder", i)}
-						{handlePaste}
-						appearance="touch"
-						renderWidth={176}
-						renderHeight={112}
-					/>
-				{/each}
-			</div>
-			<div class="knob-row" aria-hidden="true">
-				{#each { length: device.encoders } as _}
-					<div class="knob-slot">
-						<div class="device-knob"></div>
-					</div>
-				{/each}
-			</div>
-		{:else}
-			<div class="flex flex-row">
-				{#each { length: device.encoders } as _, i}
-					<Key
-						context={{ device: device.id, profile: profile.id, controller: "Encoder", position: i }}
-						bind:inslot={profile.sliders[i]}
-						on:dragover={handleDragOver}
-						on:drop={(event) => handleDrop(event, "Encoder", i)}
-						on:dragstart={(event) => handleDragStart(event, "Encoder", i)}
-						{handlePaste}
-						size={device.id.startsWith("sd-") && device.rows == 4 && device.columns == 8 ? 192 : 144}
-					/>
-				{/each}
-			</div>
-		{/if}
 	</div>
 {/key}
