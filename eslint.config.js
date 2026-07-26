@@ -10,6 +10,7 @@ export default [
 	prettier,
 	...svelte.configs.prettier,
 	{
+		files: ["**/*.svelte"],
 		languageOptions: {
 			ecmaVersion: 2022,
 			sourceType: "module",
@@ -24,6 +25,11 @@ export default [
 				extraFileExtensions: [".svelte"],
 			},
 		},
+		rules: {
+			"no-useless-assignment": "off",
+		},
+	},
+	{
 		rules: {
 			"@typescript-eslint/ban-ts-comment": "off",
 			"@typescript-eslint/no-explicit-any": "off",

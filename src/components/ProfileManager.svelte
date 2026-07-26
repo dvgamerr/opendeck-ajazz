@@ -245,67 +245,69 @@
 	<span class="text-sm dark:text-neutral-400">The 'default profile' will activate when the focussed application has no profile associated with it.</span>
 
 	<table class="w-full dark:text-neutral-300 divide-y">
-		{#each Object.entries(applicationProfiles).sort((a, b) => (a[0] == "opendeck_default" ? -1 : b[0] == "opendeck_default" ? 1 : a[0].localeCompare(b[0]))) as [appName, devices]}
-			{#if devices[device.id]}
-				<tr class="h-12">
-					<td>{appName == "opendeck_default" ? "Default profile" : appName}:</td>
-					<td class="select-wrapper">
-						<select bind:value={applicationProfiles[appName][device.id]} class="w-full">
-							{#each Object.entries(folders) as [id, profiles]}
-								{#if id && profiles.length}
-									<optgroup label={id}>
+		<tbody>
+			{#each Object.entries(applicationProfiles).sort((a, b) => (a[0] == "opendeck_default" ? -1 : b[0] == "opendeck_default" ? 1 : a[0].localeCompare(b[0]))) as [appName, devices]}
+				{#if devices[device.id]}
+					<tr class="h-12">
+						<td>{appName == "opendeck_default" ? "Default profile" : appName}:</td>
+						<td class="select-wrapper">
+							<select bind:value={applicationProfiles[appName][device.id]} class="w-full">
+								{#each Object.entries(folders) as [id, profiles]}
+									{#if id && profiles.length}
+										<optgroup label={id}>
+											{#each profiles as profile}
+												<option value={profile}>{profile.split("/")[1]}</option>
+											{/each}
+										</optgroup>
+									{:else}
 										{#each profiles as profile}
-											<option value={profile}>{profile.split("/")[1]}</option>
+											<option value={profile}>{profile}</option>
 										{/each}
-									</optgroup>
-								{:else}
-									{#each profiles as profile}
-										<option value={profile}>{profile}</option>
-									{/each}
-								{/if}
-							{/each}
-							<option disabled>──────────</option>
-							<option value={undefined}>Remove application</option>
-						</select>
-					</td>
-				</tr>
-			{/if}
-		{/each}
-		<tr class="h-12">
-			<td class="w-48 select-wrapper">
-				<select bind:value={applicationsAddAppName} class="w-full">
-					<option selected disabled value="opendeck_select_application">Select application...</option>
-					{#if !applicationProfiles["opendeck_default"] || !applicationProfiles["opendeck_default"][device.id]}
-						<option value="opendeck_default">Default profile</option>
-						{#if applications.filter((appName) => !applicationProfiles[appName] || !applicationProfiles[appName][device.id]).length > 0}
-							<option disabled>──────────</option>
-						{/if}
-					{/if}
-					{#each applications as appName}
-						{#if !applicationProfiles[appName] || !applicationProfiles[appName][device.id]}
-							<option value={appName}>{appName}</option>
-						{/if}
-					{/each}
-				</select>
-			</td>
-			<td class="w-96 select-wrapper">
-				<select bind:value={applicationsAddProfile} class="w-full">
-					<option selected disabled value="opendeck_select_profile">Select profile...</option>
-					{#each Object.entries(folders) as [id, profiles]}
-						{#if id && profiles.length}
-							<optgroup label={id}>
-								{#each profiles as profile}
-									<option value={profile}>{profile.split("/")[1]}</option>
+									{/if}
 								{/each}
-							</optgroup>
-						{:else}
-							{#each profiles as profile}
-								<option value={profile}>{profile}</option>
-							{/each}
+								<option disabled>──────────</option>
+								<option value={undefined}>Remove application</option>
+							</select>
+						</td>
+					</tr>
+				{/if}
+			{/each}
+			<tr class="h-12">
+				<td class="w-48 select-wrapper">
+					<select bind:value={applicationsAddAppName} class="w-full">
+						<option selected disabled value="opendeck_select_application">Select application...</option>
+						{#if !applicationProfiles["opendeck_default"] || !applicationProfiles["opendeck_default"][device.id]}
+							<option value="opendeck_default">Default profile</option>
+							{#if applications.filter((appName) => !applicationProfiles[appName] || !applicationProfiles[appName][device.id]).length > 0}
+								<option disabled>──────────</option>
+							{/if}
 						{/if}
-					{/each}
-				</select>
-			</td>
-		</tr>
+						{#each applications as appName}
+							{#if !applicationProfiles[appName] || !applicationProfiles[appName][device.id]}
+								<option value={appName}>{appName}</option>
+							{/if}
+						{/each}
+					</select>
+				</td>
+				<td class="w-96 select-wrapper">
+					<select bind:value={applicationsAddProfile} class="w-full">
+						<option selected disabled value="opendeck_select_profile">Select profile...</option>
+						{#each Object.entries(folders) as [id, profiles]}
+							{#if id && profiles.length}
+								<optgroup label={id}>
+									{#each profiles as profile}
+										<option value={profile}>{profile.split("/")[1]}</option>
+									{/each}
+								</optgroup>
+							{:else}
+								{#each profiles as profile}
+									<option value={profile}>{profile}</option>
+								{/each}
+							{/if}
+						{/each}
+					</select>
+				</td>
+			</tr>
+		</tbody>
 	</table>
 </Popup>

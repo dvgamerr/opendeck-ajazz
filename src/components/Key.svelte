@@ -180,7 +180,7 @@
 	on:click|stopPropagation={select}
 	on:keyup|stopPropagation={select}
 	on:contextmenu={contextMenu}
-/>
+></canvas>
 
 {#if $openContextMenu && $openContextMenu?.context == context}
 	<div

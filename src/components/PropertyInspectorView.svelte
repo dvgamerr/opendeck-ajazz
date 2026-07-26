@@ -185,7 +185,7 @@
 				name={instance.context}
 				bind:this={iframes[instance.context]}
 				on:load={() => iframeOnLoad(instance)}
-			/>
+			></iframe>
 		{/if}
 	{/each}
 </div>

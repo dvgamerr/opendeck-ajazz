@@ -1,6 +1,7 @@
 use std::fs;
 
 fn main() {
+	// Rebuild bundled plugins after source or asset changes without runtime polling.
 	println!("cargo:rerun-if-changed=../plugins");
 	if let Err(error) = || -> Result<(), std::io::Error> {
 		for entry in fs::read_dir("../plugins")?.flatten() {

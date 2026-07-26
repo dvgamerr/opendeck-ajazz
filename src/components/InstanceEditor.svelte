@@ -100,7 +100,7 @@
 		<div class="flex flex-col pl-2 pr-1 pt-4 pb-2 space-y-2">
 			<div class="flex flex-row space-x-2">
 				<span> Text </span>
-				<textarea bind:value={instance.states[state].text} rows="1" class="w-full px-1 dark:text-neutral-300 bg-neutral-200 dark:bg-neutral-600 rounded-md outline-hidden resize-none" />
+				<textarea bind:value={instance.states[state].text} rows="1" class="w-full px-1 dark:text-neutral-300 bg-neutral-200 dark:bg-neutral-600 rounded-md outline-hidden resize-none"></textarea>
 			</div>
 			<div class="flex flex-row items-center">
 				<span class="mr-2"> Colour </span>
