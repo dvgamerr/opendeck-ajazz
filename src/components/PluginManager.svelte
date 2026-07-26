@@ -5,6 +5,7 @@
 	import FileArrowUp from "phosphor-svelte/lib/FileArrowUp";
 	import Gear from "phosphor-svelte/lib/Gear";
 	import MagnifyingGlass from "phosphor-svelte/lib/MagnifyingGlass";
+	import PuzzlePiece from "phosphor-svelte/lib/PuzzlePiece";
 	import Trash from "phosphor-svelte/lib/Trash";
 	import WarningCircle from "phosphor-svelte/lib/WarningCircle";
 	import ListedPlugin from "./ListedPlugin.svelte";
@@ -142,11 +143,9 @@
 	});
 </script>
 
-<button
-	class="p-1 w-1/2 text-sm text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-700 border dark:border-neutral-600 rounded-lg outline-hidden"
-	on:click={() => (showPopup = true)}
->
-	Plugins
+<button class="app-toolbar-button" title="Manage plugins" on:click={() => (showPopup = true)}>
+	<PuzzlePiece size="16" weight="bold" />
+	<span>Plugins</span>
 </button>
 
 <svelte:window

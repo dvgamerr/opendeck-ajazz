@@ -156,7 +156,7 @@
 
 <canvas
 	bind:this={canvas}
-	class="relative block outline-none outline-offset-2 outline-blue-500"
+	class={`key-canvas key-canvas--${resolvedAppearance} relative block outline-none outline-offset-2 outline-indigo-500`}
 	class:-m-2={resolvedAppearance != "touch"}
 	class:border-2={resolvedAppearance != "touch"}
 	class:dark:border-neutral-700={resolvedAppearance != "touch"}

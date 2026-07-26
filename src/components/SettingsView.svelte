@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Gear from "phosphor-svelte/lib/Gear";
 	import Star from "phosphor-svelte/lib/Star";
 	import Popup from "./Popup.svelte";
 	import Tooltip from "./Tooltip.svelte";
@@ -62,11 +63,9 @@
 	});
 </script>
 
-<button
-	class="p-1 w-1/2 text-sm text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-700 border dark:border-neutral-600 rounded-lg outline-hidden"
-	on:click={() => (showPopup = true)}
->
-	Settings
+<button class="app-toolbar-button" title="Open settings" on:click={() => (showPopup = true)}>
+	<Gear size="16" weight="bold" />
+	<span>Settings</span>
 </button>
 
 <svelte:window

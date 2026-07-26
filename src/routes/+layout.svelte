@@ -5,6 +5,6 @@
 	void params;
 </script>
 
-<div class="flex flex-row h-screen dark:bg-neutral-900">
+<div class="app-root">
 	<slot />
 </div>

@@ -99,7 +99,7 @@
 	let lastWindowSize = "";
 	$: {
 		if (devices[value]) {
-			const width = Math.max(devices[value].columns, devices[value].encoders) * 132 + 288;
+			const width = Math.max(devices[value].columns, devices[value].encoders) * 132 + 392;
 			const height = (devices[value].rows + Math.min(devices[value].encoders, 1)) * 132 + 288;
 			const sizeKey = `${width}x${height}`;
 			if (sizeKey != lastWindowSize) {

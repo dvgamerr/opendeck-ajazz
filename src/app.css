@@ -6,6 +6,31 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+:root {
+	font-family: "Liberation Sans", Inter, ui-sans-serif, system-ui, sans-serif;
+	color-scheme: light;
+	background: #f4f4f5;
+}
+
+:root.dark {
+	color-scheme: dark;
+	background: #202020;
+}
+
+html,
+body {
+	height: 100%;
+	overflow: hidden;
+}
+
+body {
+	background: #f4f4f5;
+}
+
+.dark body {
+	background: #202020;
+}
+
 *,
 ::after,
 ::before,
@@ -24,10 +49,10 @@ input[type="color"] {
 
 select {
 	@apply appearance-none;
-	@apply px-2 py-1;
+	@apply px-3 py-2;
 	@apply text-sm text-neutral-700 dark:text-neutral-300;
-	@apply bg-neutral-100 dark:bg-neutral-700;
-	@apply border-2 dark:border-neutral-900 rounded-md outline-hidden;
+	@apply bg-white dark:bg-neutral-800;
+	@apply border border-neutral-300 dark:border-neutral-700 rounded-lg outline-hidden;
 	@apply cursor-pointer;
 }
 
@@ -36,10 +61,199 @@ select {
 }
 
 .select-wrapper::after {
-	@apply absolute right-4 top-[47.5%] -translate-y-1/2;
+	@apply absolute right-4 top-1/2 -translate-y-1/2;
 	@apply w-2 h-2 rotate-45;
 	@apply border-r-2 border-b-2;
 	@apply pointer-events-none content-["_"];
+}
+
+.app-root {
+	@apply flex h-screen min-h-0 w-full overflow-hidden bg-neutral-100 text-neutral-900 dark:bg-[#202020] dark:text-neutral-100;
+}
+
+.workspace-shell {
+	@apply flex min-w-0 flex-1 flex-col bg-neutral-100 dark:bg-[#292929];
+}
+
+.workspace-toolbar {
+	@apply flex h-[5.25rem] shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-8 dark:border-[#383838] dark:bg-[#292929];
+}
+
+.device-status {
+	@apply rounded-full border border-emerald-600/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400;
+}
+
+.device-workspace {
+	@apply flex min-h-0 flex-1 items-center justify-center overflow-auto px-8 py-6;
+	background-image: radial-gradient(circle at center, rgb(255 255 255 / 55%) 0, transparent 58%);
+}
+
+.dark .device-workspace {
+	background-image: radial-gradient(circle at center, rgb(255 255 255 / 3.5%) 0, transparent 58%);
+}
+
+.property-inspector {
+	@apply h-[36%] min-h-48 shrink-0 overflow-hidden border-t border-neutral-200 bg-white dark:border-[#383838] dark:bg-[#222];
+}
+
+.action-sidebar {
+	@apply flex h-full w-[21rem] shrink-0 flex-col border-l border-neutral-200 bg-white dark:border-[#383838] dark:bg-[#232323];
+}
+
+.sidebar-controls {
+	@apply shrink-0 space-y-2 border-b border-neutral-200 p-4 dark:border-[#383838];
+}
+
+.sidebar-eyebrow {
+	@apply text-[10px] font-bold tracking-[0.18em] text-neutral-400 dark:text-neutral-500;
+}
+
+.app-toolbar-button {
+	@apply flex h-9 items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 text-xs font-medium text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:border-[#424242] dark:bg-[#333] dark:text-neutral-300 dark:hover:bg-[#3d3d3d] dark:hover:text-white;
+}
+
+.device-chassis {
+	@apply relative flex flex-col rounded-[2rem] border border-neutral-300 bg-gradient-to-b from-neutral-200 to-neutral-300 p-7 shadow-2xl dark:border-[#474747] dark:from-[#363636] dark:to-[#2e2e2e];
+	box-shadow:
+		0 28px 65px rgb(0 0 0 / 22%),
+		inset 0 1px 0 rgb(255 255 255 / 8%);
+}
+
+.device-chassis::before {
+	position: absolute;
+	inset: 9px;
+	border: 1px solid rgb(255 255 255 / 4%);
+	border-radius: 1.55rem;
+	pointer-events: none;
+	content: "";
+}
+
+.device-key-grid {
+	@apply relative z-[1] flex flex-col;
+}
+
+.touch-strip {
+	@apply relative z-[1] mt-4 flex overflow-hidden rounded-xl border-[3px] border-neutral-500 bg-black shadow-inner dark:border-[#171717];
+	box-shadow:
+		0 7px 16px rgb(0 0 0 / 38%),
+		inset 0 0 0 1px rgb(255 255 255 / 7%);
+}
+
+.touch-strip > canvas:not(:last-child) {
+	border-right: 1px solid rgb(255 255 255 / 6%);
+}
+
+.knob-row {
+	@apply relative z-[1] mt-5 flex;
+}
+
+.knob-slot {
+	@apply flex w-40 justify-center;
+}
+
+.device-knob {
+	@apply relative h-[4.4rem] w-[4.4rem] rounded-full border border-[#101010] bg-gradient-to-br from-[#606060] via-[#464646] to-[#1d1d1d];
+	box-shadow:
+		0 9px 13px rgb(0 0 0 / 45%),
+		0 0 0 5px #202020,
+		0 0 0 7px #484848,
+		inset 2px 2px 3px rgb(255 255 255 / 15%);
+}
+
+.device-knob::after {
+	position: absolute;
+	top: 6px;
+	left: 50%;
+	width: 2px;
+	height: 8px;
+	border-radius: 999px;
+	background: rgb(255 255 255 / 32%);
+	transform: translateX(-50%);
+	content: "";
+}
+
+.key-canvas {
+	background: #1c1c1c;
+	border-color: #505050;
+	box-shadow:
+		0 8px 12px rgb(0 0 0 / 35%),
+		inset 0 0 0 1px rgb(255 255 255 / 5%);
+	transition:
+		filter 120ms ease,
+		box-shadow 120ms ease;
+}
+
+.key-canvas:hover {
+	filter: brightness(1.1);
+	box-shadow:
+		0 9px 15px rgb(0 0 0 / 42%),
+		0 0 0 2px rgb(99 102 241 / 30%);
+}
+
+.key-canvas--touch {
+	background: #050505;
+	box-shadow: none;
+}
+
+.action-library {
+	@apply flex min-h-0 flex-1 flex-col;
+}
+
+.action-library-header {
+	@apply shrink-0 space-y-3 border-b border-neutral-200 p-4 dark:border-[#383838];
+}
+
+.action-search {
+	@apply flex h-9 items-center rounded-lg border border-neutral-200 bg-neutral-100 text-neutral-500 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500/15 dark:border-[#3d3d3d] dark:bg-[#303030] dark:text-neutral-400;
+}
+
+.action-tabs {
+	@apply grid grid-cols-2 gap-1 rounded-lg bg-neutral-100 p-1 dark:bg-[#2d2d2d];
+}
+
+.action-tab {
+	@apply flex items-center justify-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium text-neutral-500 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white;
+}
+
+.action-tab-active {
+	@apply bg-white text-neutral-900 shadow-sm dark:bg-[#464646] dark:text-white;
+}
+
+.action-list-scroll {
+	@apply min-h-0 flex-1 overflow-y-auto px-3 py-2 select-none;
+	scrollbar-color: #555 transparent;
+	scrollbar-width: thin;
+}
+
+.action-category {
+	@apply mb-1;
+}
+
+.action-category > summary {
+	@apply flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-[#2f2f2f];
+}
+
+.action-category > summary::-webkit-details-marker {
+	display: none;
+}
+
+.action-category > summary::before {
+	width: 0;
+	height: 0;
+	border-top: 4px solid transparent;
+	border-bottom: 4px solid transparent;
+	border-left: 5px solid currentColor;
+	opacity: 0.55;
+	transition: transform 120ms ease;
+	content: "";
+}
+
+.action-category[open] > summary::before {
+	transform: rotate(90deg);
+}
+
+.action-row {
+	@apply ml-3 flex cursor-grab items-center gap-3 rounded-lg px-2 py-1.5 text-sm text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900 active:cursor-grabbing dark:text-neutral-400 dark:hover:bg-[#303030] dark:hover:text-white;
 }
 
 .plugin-readme h1,
