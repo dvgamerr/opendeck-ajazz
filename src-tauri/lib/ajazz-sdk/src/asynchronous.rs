@@ -14,7 +14,6 @@ use crate::{AjazzError, AjazzInput, DeviceState, Event, Kind};
 use crate::device::{handle_input_state_change, Ajazz};
 use crate::hid::list_devices;
 use crate::images::convert_image_async;
-use crate::info::get_product_name;
 
 /// Actually refreshes the device list, can be safely ran inside [multi_thread](tokio::runtime::Builder::new_multi_thread) runtime
 pub fn refresh_device_list_async(hidapi: &mut HidApi) -> HidResult<()> {
@@ -48,7 +47,7 @@ impl AsyncAjazz {
         serial: &str,
     ) -> Result<AsyncAjazz, AjazzError> {
         let device = block_in_place(move || Ajazz::connect(hidapi, kind, serial))?;
-        let product_name = block_in_place(move || get_product_name(&kind));
+        let product_name = kind.product_name().to_owned();
 
         Ok(AsyncAjazz {
             kind,
@@ -67,7 +66,7 @@ impl AsyncAjazz {
         let device = block_in_place(move || {
             Ajazz::connect_with_retries(hidapi, kind, serial, attempts)
         })?;
-        let product_name = block_in_place(move || get_product_name(&kind));
+        let product_name = kind.product_name().to_owned();
 
         Ok(AsyncAjazz {
             kind,

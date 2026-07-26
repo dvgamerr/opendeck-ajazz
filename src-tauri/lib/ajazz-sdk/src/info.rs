@@ -1,25 +1,8 @@
 use crate::{
-    protocol::codes,
     images::{ImageFormat, ImageMirroring, ImageMode, ImageRotation},
+    protocol::codes,
     AjazzError,
 };
-
-/// Returns the display name for a supported device kind.
-#[cfg(feature = "async")]
-pub fn get_product_name(kind: &Kind) -> String {
-    match kind {
-        Kind::Akp153 => "Ajazz AKP153",
-        Kind::Akp153E => "Ajazz AKP153E",
-        Kind::Akp153R => "Ajazz AKP153R",
-        Kind::Akp815 => "Ajazz AKP815",
-        Kind::Akp03 => "Ajazz AKP03",
-        Kind::Akp03E => "Ajazz AKP03E",
-        Kind::Akp03R => "Ajazz AKP03R",
-        Kind::Akp03RRev2 => "Ajazz AKP03R rev 2",
-        Kind::Akp05E552A => "Ajazz AKP05E_552A",
-    }
-    .to_string()
-}
 
 /// Returns true for vendors IDs that are handled by the library
 pub const fn is_mirabox_vendor(vendor: u16) -> bool {
@@ -53,6 +36,21 @@ pub enum Kind {
 }
 
 impl Kind {
+    /// Human-readable product name.
+    pub const fn product_name(&self) -> &'static str {
+        match self {
+            Kind::Akp153 => "Ajazz AKP153",
+            Kind::Akp153E => "Ajazz AKP153E",
+            Kind::Akp153R => "Ajazz AKP153R",
+            Kind::Akp815 => "Ajazz AKP815",
+            Kind::Akp03 => "Ajazz AKP03",
+            Kind::Akp03E => "Ajazz AKP03E",
+            Kind::Akp03R => "Ajazz AKP03R",
+            Kind::Akp03RRev2 => "Ajazz AKP03R rev 2",
+            Kind::Akp05E552A => "Ajazz AKP05E_552A",
+        }
+    }
+
     /// Creates [Kind] variant from Vendor ID and Product ID
     pub const fn from_vid_pid(vid: u16, pid: u16) -> Option<Kind> {
         match vid {
@@ -329,6 +327,16 @@ impl Kind {
 #[cfg(test)]
 mod tests {
     use super::Kind;
+
+    #[test]
+    fn akp05e_552a_metadata_matches_the_physical_layout() {
+        let kind = Kind::Akp05E552A;
+        assert_eq!(kind.product_name(), "Ajazz AKP05E_552A");
+        assert_eq!(kind.key_layout(), (2, 5));
+        assert_eq!(kind.touchpoint_count(), 4);
+        assert_eq!(kind.encoder_count(), 4);
+        assert_eq!(kind.lcd_strip_size(), Some((800, 100)));
+    }
 
     #[test]
     fn clear_all_sentinel_is_not_rejected_as_a_key_index() {
