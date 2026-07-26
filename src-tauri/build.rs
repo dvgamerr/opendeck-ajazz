@@ -1,7 +1,6 @@
 use std::fs;
 
 fn main() {
-	#[cfg(not(debug_assertions))]
 	println!("cargo:rerun-if-changed=../plugins");
 	if let Err(error) = || -> Result<(), std::io::Error> {
 		for entry in fs::read_dir("../plugins")?.flatten() {

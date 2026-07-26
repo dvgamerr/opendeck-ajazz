@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<script>
+			let update = () => {};
+
+			function connectElgatoStreamDeckSocket(inPort, inPropertyInspectorUUID, inRegisterEvent, inInfo, inActionInfo) {
+				const websocket = new WebSocket("ws://localhost:" + inPort);
+				inActionInfo = JSON.parse(inActionInfo);
+				websocket.onopen = () => {
+					websocket.send(JSON.stringify({
+						event: inRegisterEvent,
+						uuid: inPropertyInspectorUUID,
+					}));
+				};
+
+				const step = document.getElementById("step");
+				const stepDisplay = document.getElementById("step-display");
+				step.value = (inActionInfo.payload.settings.step ?? 2).toString();
+				stepDisplay.innerText = step.value;
+
+				update = () => {
+					stepDisplay.innerText = step.value;
+					websocket.send(JSON.stringify({
+						event: "setSettings",
+						context: inActionInfo.context,
+						payload: {
+							step: parseInt(step.value),
+						},
+					}));
+				};
+			}
+		</script>
+		<link rel="stylesheet" href="sdpi.css" />
+	</head>
+	<body>
+		<div class="sdpi-item">
+			<div class="sdpi-item-label">Step (<span id="step-display"></span>%)</div>
+			<input id="step" oninput="update();" class="sdpi-item-value" type="range" min="1" max="20" />
+		</div>
+		<p style="padding: 0 0.75rem">
+			Turn the dial to change the Windows system volume. Press it to mute or unmute. The current level and output device are rendered at the LCD zone's native 176×112 ratio.
+		</p>
+	</body>
+</html>

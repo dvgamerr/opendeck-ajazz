@@ -1,3 +1,4 @@
+mod audio;
 mod device_brightness;
 mod input_simulation;
 mod run_command;
@@ -100,6 +101,12 @@ impl openaction::ActionEventHandler for ActionEventHandler {
 			"com.amansprojects.starterpack.devicebrightness" => {
 				device_brightness::up(event, outbound).await
 			}
+			"com.amansprojects.starterpack.systemvolume" => {
+				audio::toggle_mute(event, outbound).await
+			}
+			"com.amansprojects.starterpack.switchsounddevice" => {
+				audio::switch_on_press(event, outbound).await
+			}
 			_ => Ok(()),
 		}
 	}
@@ -117,8 +124,30 @@ impl openaction::ActionEventHandler for ActionEventHandler {
 			"com.amansprojects.starterpack.devicebrightness" => {
 				device_brightness::rotate(event, outbound).await
 			}
+			"com.amansprojects.starterpack.systemvolume" => {
+				audio::rotate_volume(event, outbound).await
+			}
+			"com.amansprojects.starterpack.switchsounddevice" => {
+				audio::switch_on_rotate(event, outbound).await
+			}
 			_ => Ok(()),
 		}
+	}
+
+	async fn will_appear(
+		&self,
+		event: AppearEvent,
+		outbound: &mut openaction::OutboundEventManager,
+	) -> EventHandlerResult {
+		audio::refresh(&event.action, event.context, outbound).await
+	}
+
+	async fn did_receive_settings(
+		&self,
+		event: DidReceiveSettingsEvent,
+		outbound: &mut openaction::OutboundEventManager,
+	) -> EventHandlerResult {
+		audio::refresh(&event.action, event.context, outbound).await
 	}
 }
 

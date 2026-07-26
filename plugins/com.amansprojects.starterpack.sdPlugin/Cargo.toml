@@ -14,3 +14,17 @@ ron = "0.10"
 enigo = { version = "0.5", features = ["serde", "x11rb", "wayland", "libei"] }
 tokio = { version = "1.45", features = ["full"] }
 os_pipe = "1.2"
+anyhow = "1.0"
+
+[target.'cfg(windows)'.dependencies]
+com-policy-config = "0.6"
+windows = { version = "0.61", features = [
+	"Win32_Devices_FunctionDiscovery",
+	"Win32_Foundation",
+	"Win32_Media_Audio",
+	"Win32_Media_Audio_Endpoints",
+	"Win32_System_Com",
+	"Win32_System_Com_StructuredStorage",
+	"Win32_System_Variant",
+	"Win32_UI_Shell_PropertiesSystem",
+] }

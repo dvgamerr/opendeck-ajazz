@@ -1,26 +1,4 @@
 {
-	"Name": "OpenDeck Starter Pack",
-	"Description": "OpenDeck starter pack plugin",
-	"Author": "Aman Khanna (nekename)",
-	"Version": "2.7.0",
-	"CodePathWin": "windows/bin/opendeck-starterpack.exe",
-	"CodePathMac": "darwin/bin/opendeck-starterpack",
-	"CodePathLin": "linux/bin/opendeck-starterpack",
-	"Icon": "icons/plugin",
-	"Category": "OpenDeck",
-	"OS": [
-		{
-			"Platform": "mac",
-			"MinimumVersion": "10.11"
-		},
-		{
-			"Platform": "windows",
-			"MinimumVersion": "10"
-		},
-		{
-			"Platform": "linux"
-		}
-	],
 	"Actions": [
 		{
 			"Icon": "icons/runCommand",
@@ -61,6 +39,26 @@
 			"Tooltip": "Change the device brightness",
 			"UUID": "com.amansprojects.starterpack.devicebrightness",
 			"PropertyInspectorPath": "propertyInspector/deviceBrightness.html"
+		},
+		{
+			"Icon": "icons/systemVolume",
+			"Name": "System Volume",
+			"States": [{ "Image": "actionDefaultImage", "ShowTitle": false }],
+			"Controllers": ["Encoder"],
+			"SupportedInMultiActions": false,
+			"Tooltip": "Turn to adjust system volume and press to mute",
+			"UUID": "com.amansprojects.starterpack.systemvolume",
+			"PropertyInspectorPath": "propertyInspector/systemVolume.html"
+		},
+		{
+			"Icon": "icons/switchSoundDevice",
+			"Name": "Switch Sound Device",
+			"States": [{ "Image": "actionDefaultImage", "ShowTitle": false }],
+			"Controllers": ["Encoder"],
+			"SupportedInMultiActions": false,
+			"Tooltip": "Turn or press to switch the default sound output device",
+			"UUID": "com.amansprojects.starterpack.switchsounddevice",
+			"PropertyInspectorPath": "propertyInspector/switchSoundDevice.html"
 		}
 	]
 }

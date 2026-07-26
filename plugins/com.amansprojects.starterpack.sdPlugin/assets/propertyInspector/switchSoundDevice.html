@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<script>
+			let update = () => {};
+
+			function connectElgatoStreamDeckSocket(inPort, inPropertyInspectorUUID, inRegisterEvent, inInfo, inActionInfo) {
+				const websocket = new WebSocket("ws://localhost:" + inPort);
+				inActionInfo = JSON.parse(inActionInfo);
+				websocket.onopen = () => {
+					websocket.send(JSON.stringify({
+						event: inRegisterEvent,
+						uuid: inPropertyInspectorUUID,
+					}));
+				};
+
+				const direction = document.getElementById("direction");
+				direction.value = inActionInfo.payload.settings.direction ?? "next";
+				update = () => {
+					websocket.send(JSON.stringify({
+						event: "setSettings",
+						context: inActionInfo.context,
+						payload: {
+							direction: direction.value,
+						},
+					}));
+				};
+			}
+		</script>
+		<link rel="stylesheet" href="sdpi.css" />
+	</head>
+	<body>
+		<div class="sdpi-item">
+			<div class="sdpi-item-label">Press action</div>
+			<select id="direction" onchange="update();" class="sdpi-item-value select">
+				<option value="next">Next output</option>
+				<option value="previous">Previous output</option>
+			</select>
+		</div>
+		<p style="padding: 0 0.75rem">
+			Press to switch in the selected direction. Turning the dial right selects the next active Windows output; turning left selects the previous one.
+		</p>
+	</body>
+</html>
