@@ -6,10 +6,11 @@ use std::time::Duration;
 use hidapi::{HidApi, HidDevice, HidError};
 use image::DynamicImage;
 
-use crate::images::{convert_image, WriteImageParameters, ImageRect};
+use crate::images::{convert_image, convert_image_with_format, WriteImageParameters};
 use crate::info::Kind;
+use crate::hid::is_supported_interface;
 use crate::protocol::{codes, extract_string, request, AjazzProtocolParser, AjazzRequestBuilder};
-use crate::{convert_image_with_format, AjazzError, AjazzInput, DeviceState, Event};
+use crate::{AjazzError, AjazzInput, DeviceState, Event};
 
 /// Interface for an Ajazz device
 pub struct Ajazz {
@@ -58,44 +59,6 @@ impl Ajazz {
         Err(last_error.expect("error must never be empty at this point"))
     }
 
-
-    pub fn write_lcd(&self, x: u16, y: u16, rect: &ImageRect) -> Result<(), AjazzError> {
-        match self.kind {
-            Kind::Akp05 => (),
-            _ => return Err(AjazzError::UnsupportedOperation),
-        }
-
-        self.write_image_data_reports(
-            rect.data.as_slice(),
-            WriteImageParameters {
-                image_report_length: 1024,
-                image_report_payload_length: 1024 - 16,
-            },
-        )
-    }
-
-    /// Writes image data to Stream Deck device's lcd strip/screen as full fill
-    ///
-    /// You can convert your images into proper image_data like this:
-    /// ```
-    /// use elgato_streamdeck::images::convert_image_with_format;
-    /// let image_data = convert_image_with_format(device.kind().lcd_image_format(), image).unwrap();
-    /// device.write_lcd_fill(&image_data);
-    /// ```
-    pub fn write_lcd_fill(&self, image_data: &[u8]) -> Result<(), AjazzError> {
-        match self.kind {
-            Kind::Akp05 => self.write_image_data_reports(
-                image_data,
-                WriteImageParameters {
-                    image_report_length: 1024,
-                    image_report_payload_length: 1024 - 8,
-                },
-            ),
-            _ => Err(AjazzError::UnsupportedOperation),
-        }
-    }
-
-
     /// Attempts to connect to the device
     pub fn connect(hidapi: &HidApi, kind: Kind, serial: &str) -> Result<Ajazz, AjazzError> {
         Self::try_connect(hidapi, kind, serial)
@@ -103,7 +66,16 @@ impl Ajazz {
 
     // Internal function to connect to the device
     fn try_connect(hidapi: &HidApi, kind: Kind, serial: &str) -> Result<Ajazz, AjazzError> {
-        let device = hidapi.open_serial(kind.vendor_id(), kind.product_id(), serial)?;
+        let info = hidapi
+            .device_list()
+            .find(|device| {
+                device.vendor_id() == kind.vendor_id()
+                    && device.product_id() == kind.product_id()
+                    && device.serial_number() == Some(serial)
+                    && is_supported_interface(device, kind)
+            })
+            .ok_or(AjazzError::DeviceNotFound)?;
+        let device = info.open_device(hidapi)?;
 
         Ok(Ajazz {
             kind,
@@ -130,12 +102,12 @@ impl Ajazz {
     }
 
     /// Returns product string of the device
-     pub fn product(&self) -> Result<String, AjazzError> {
-         Ok(self
-             .hid
-             .get_product_string()?
-             .unwrap_or_else(|| "Unknown".to_string()))
-     }
+    pub fn product(&self) -> Result<String, AjazzError> {
+        Ok(self
+            .hid
+            .get_product_string()?
+            .unwrap_or_else(|| "Unknown".to_string()))
+    }
 
     /// Returns serial number of the device
     pub fn serial_number(&self) -> Result<String, AjazzError> {
@@ -237,7 +209,7 @@ impl Ajazz {
     pub fn clear_button_image(&self, key: u8) -> Result<(), AjazzError> {
         self.initialize()?;
 
-        let od_key : u8 = self.kind.opendeck_to_device_key(key)?;
+        let od_key: u8 = self.kind.opendeck_to_device_key(key)?;
         let packet = self.kind.clear_button_image_packet(od_key);
         self.hid.write(packet.as_slice())?;
 
@@ -309,6 +281,37 @@ impl Ajazz {
         Ok(())
     }
 
+    /// Sets an image on one of the four zones of the AKP05E_552A touchscreen strip.
+    pub fn set_touch_zone_image(
+        &self,
+        touch: u8,
+        image: DynamicImage,
+    ) -> Result<(), AjazzError> {
+        self.initialize()?;
+        if self.kind != Kind::Akp05E552A || touch >= self.kind.touchpoint_count() {
+            return Err(AjazzError::InvalidKeyIndex(touch));
+        }
+
+        let format = self
+            .kind
+            .touch_zone_image_format()
+            .ok_or(AjazzError::UnsupportedOperation)?;
+        let image_data = convert_image_with_format(format, image)?;
+        self.write_native_image_to_cache(touch, &image_data)
+    }
+
+    /// Clears one of the four zones of the AKP05E_552A touchscreen strip.
+    pub fn clear_touch_zone_image(&self, touch: u8) -> Result<(), AjazzError> {
+        self.initialize()?;
+        if self.kind != Kind::Akp05E552A || touch >= self.kind.touchpoint_count() {
+            return Err(AjazzError::InvalidKeyIndex(touch));
+        }
+
+        let packet = self.kind.clear_button_image_packet(touch);
+        self.hid.write(packet.as_slice())?;
+        Ok(())
+    }
+
     /// Set logo image
     pub fn set_logo_image(&self, image: DynamicImage) -> Result<(), AjazzError> {
         self.initialize()?;
@@ -344,9 +347,17 @@ impl Ajazz {
     /// Writes image data to Ajazz device, changes must be flushed with `.flush()` before
     /// they will appear on the device!
     fn write_image_to_cache(&self, key: u8, image_data: &[u8]) -> Result<(), AjazzError> {
-        let od_key : u8 = self.kind.opendeck_to_device_key(key)?;
+        let od_key: u8 = self.kind.opendeck_to_device_key(key)?;
+        self.write_native_image_to_cache(od_key, image_data)
+    }
+
+    fn write_native_image_to_cache(
+        &self,
+        key: u8,
+        image_data: &[u8],
+    ) -> Result<(), AjazzError> {
         let cache_entry = ImageCache {
-            key: od_key,
+            key,
             image_data: image_data.to_vec(), // Convert &[u8] to Vec<u8>
         };
 
@@ -418,13 +429,14 @@ impl Ajazz {
 
         let mut buf = vec![0u8; length];
 
-        match timeout {
+        let size = match timeout {
             Some(timeout) => self
                 .hid
                 .read_timeout(buf.as_mut_slice(), timeout.as_millis() as i32),
             None => self.hid.read(buf.as_mut_slice()),
         }?;
 
+        buf.truncate(size);
         Ok(buf)
     }
 }
@@ -477,6 +489,28 @@ pub(crate) fn handle_input_state_change(
                     updates.push(Event::EncoderTwist(index as u8, *change));
                 }
             }
+        }
+
+        AjazzInput::ButtonEvent(index, pressed) => {
+            let Some(current) = current_state.buttons.get_mut(index as usize) else {
+                return Err(AjazzError::BadData);
+            };
+            if *current != pressed {
+                *current = pressed;
+                updates.push(if pressed {
+                    Event::ButtonDown(index)
+                } else {
+                    Event::ButtonUp(index)
+                });
+            }
+        }
+
+        AjazzInput::EncoderPulse(index) => {
+            if index as usize >= current_state.encoders.len() {
+                return Err(AjazzError::BadData);
+            }
+            updates.push(Event::EncoderDown(index));
+            updates.push(Event::EncoderUp(index));
         }
 
         _ => {}

@@ -22,13 +22,13 @@ pub const PID_AJAZZ_AKP03E: u16 = 0x3002;
 pub const PID_AJAZZ_AKP03R: u16 = 0x1003;
 /// Product ID of Ajazz AKP03R rev 2
 pub const PID_AJAZZ_AKP03R_REV2: u16 = 0x3003;
-/// Product ID of Ajazz AKP05
-pub const PID_AJAZZ_AKP05: u16 = 0x3004;
+/// Product ID of Ajazz AKP05E_552A
+pub const PID_AJAZZ_AKP05E_552A: u16 = 0x3004;
 
 /// Offset of the button index in the input data
 pub const OFFSET_ACTION_CODE: usize = 9;
-/// Offset of the data length in the input data
-pub const OFFSET_DATA_LENGTH: usize = 0;
+/// Offset of the button press/release state in the input data
+pub const OFFSET_ACTION_STATE: usize = 10;
 
 /// Length of the input packet
 pub const INPUT_PACKET_LENGTH: usize = 512;

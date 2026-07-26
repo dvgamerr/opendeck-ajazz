@@ -18,11 +18,20 @@ pub(crate) fn extract_string(bytes: &[u8]) -> Result<String, Utf8Error> {
 
 impl AjazzProtocolParser for Kind {
     fn parse_input(&self, data: &[u8]) -> Result<AjazzInput, AjazzError> {
-        if data[codes::OFFSET_DATA_LENGTH] == 0 {
+        if data.is_empty() {
             return Ok(AjazzInput::NoData);
         }
 
+        if self.is_v2_api() && !data.starts_with(b"ACK") {
+            return Ok(AjazzInput::NoData);
+        }
+
+        if data.len() <= codes::OFFSET_ACTION_STATE {
+            return Err(AjazzError::BadData);
+        }
+
         let action_code = data[codes::OFFSET_ACTION_CODE];
+        let action_state = data[codes::OFFSET_ACTION_STATE];
 
         match self {
             kind if kind.is_v1_api() => {
@@ -37,6 +46,8 @@ impl AjazzProtocolParser for Kind {
 
                 Ok(AjazzInput::ButtonStateChange(states))
             }
+
+            Kind::Akp05E552A => parse_akp05e_552a_input(action_code, action_state),
 
             kind if kind.is_v2_api() => {
                 if is_akp03_button_press(action_code) {
@@ -102,6 +113,33 @@ impl AjazzProtocolParser for Kind {
     fn is_ack_ok(&self, data: &[u8]) -> bool {
         data.starts_with(codes::RESPONSE_ACK_OK)
     }
+}
+
+fn parse_akp05e_552a_input(input: u8, state: u8) -> Result<AjazzInput, AjazzError> {
+    match input {
+        0x01..=0x0a => Ok(AjazzInput::ButtonEvent(input - 1, state != 0)),
+        0xa0 => akp05e_552a_encoder_twist(0, -1),
+        0xa1 => akp05e_552a_encoder_twist(0, 1),
+        0x50 => akp05e_552a_encoder_twist(1, -1),
+        0x51 => akp05e_552a_encoder_twist(1, 1),
+        0x90 => akp05e_552a_encoder_twist(2, -1),
+        0x91 => akp05e_552a_encoder_twist(2, 1),
+        0x70 => akp05e_552a_encoder_twist(3, -1),
+        0x71 => akp05e_552a_encoder_twist(3, 1),
+        0x37 | 0x40 => Ok(AjazzInput::EncoderPulse(0)),
+        0x35 | 0x41 => Ok(AjazzInput::EncoderPulse(1)),
+        0x33 | 0x42 => Ok(AjazzInput::EncoderPulse(2)),
+        0x36 | 0x43 => Ok(AjazzInput::EncoderPulse(3)),
+        // The OpenDeck controller model has no swipe action.
+        0x38 | 0x39 => Ok(AjazzInput::NoData),
+        _ => Err(AjazzError::BadData),
+    }
+}
+
+fn akp05e_552a_encoder_twist(encoder: usize, value: i8) -> Result<AjazzInput, AjazzError> {
+    let mut values = vec![0; Kind::Akp05E552A.encoder_count() as usize];
+    values[encoder] = value;
+    Ok(AjazzInput::EncoderTwist(values))
 }
 
 fn parse_akp03_button_press(input: u8) -> Result<AjazzInput, AjazzError> {
@@ -189,4 +227,59 @@ fn is_akp03_button_press(input: u8) -> bool {
             | codes::ACTION_CODE_BUTTON_8
             | codes::ACTION_CODE_BUTTON_9
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn akp05e_552a_packet(input: u8, state: u8) -> Vec<u8> {
+        let mut packet = vec![0; codes::INPUT_PACKET_LENGTH];
+        packet[0..3].copy_from_slice(b"ACK");
+        packet[codes::OFFSET_ACTION_CODE] = input;
+        packet[codes::OFFSET_ACTION_STATE] = state;
+        packet
+    }
+
+    #[test]
+    fn parses_akp05e_552a_button_states() {
+        assert!(matches!(
+            Kind::Akp05E552A.parse_input(&akp05e_552a_packet(10, 1)),
+            Ok(AjazzInput::ButtonEvent(9, true))
+        ));
+        assert!(matches!(
+            Kind::Akp05E552A.parse_input(&akp05e_552a_packet(10, 0)),
+            Ok(AjazzInput::ButtonEvent(9, false))
+        ));
+    }
+
+    #[test]
+    fn parses_akp05e_552a_fourth_encoder() {
+        let Ok(AjazzInput::EncoderTwist(values)) =
+            Kind::Akp05E552A.parse_input(&akp05e_552a_packet(0x71, 0))
+        else {
+            panic!("expected encoder twist");
+        };
+        assert_eq!(values, vec![0, 0, 0, 1]);
+    }
+
+    #[test]
+    fn parses_akp05e_552a_touchscreen_zone_press() {
+        assert!(matches!(
+            Kind::Akp05E552A.parse_input(&akp05e_552a_packet(0x43, 0)),
+            Ok(AjazzInput::EncoderPulse(3))
+        ));
+    }
+
+    #[test]
+    fn ignores_non_input_and_swipe_packets() {
+        assert!(matches!(
+            Kind::Akp05E552A.parse_input(&[1, 2, 3]),
+            Ok(AjazzInput::NoData)
+        ));
+        assert!(matches!(
+            Kind::Akp05E552A.parse_input(&akp05e_552a_packet(0x38, 0)),
+            Ok(AjazzInput::NoData)
+        ));
+    }
 }

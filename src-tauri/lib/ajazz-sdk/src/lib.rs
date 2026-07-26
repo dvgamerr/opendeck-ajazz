@@ -77,6 +77,10 @@ pub enum AjazzError {
     #[error("Device sent unexpected data")]
     BadData,
 
+    /// No matching HID interface was found
+    #[error("Device not found")]
+    DeviceNotFound,
+
     /// Invalid image size
     #[error("Invalid image size: {0}x{1}, expected {2}x{3}")]
     InvalidImageSize(usize, usize, usize, usize),
@@ -100,6 +104,12 @@ pub enum AjazzInput {
 
     /// Encoder/Knob was twisted/turned
     EncoderTwist(Vec<i8>),
+
+    /// A button changed to the supplied pressed state
+    ButtonEvent(u8, bool),
+
+    /// An encoder or secondary-screen control emitted a press pulse
+    EncoderPulse(u8),
 }
 
 impl AjazzInput {

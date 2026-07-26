@@ -13,7 +13,7 @@ use tokio::time::sleep;
 use crate::{AjazzError, AjazzInput, DeviceState, Event, Kind};
 use crate::device::{handle_input_state_change, Ajazz};
 use crate::hid::list_devices;
-use crate::images::{convert_image_async, ImageRect};
+use crate::images::convert_image_async;
 use crate::info::get_product_name;
 
 /// Actually refreshes the device list, can be safely ran inside [multi_thread](tokio::runtime::Builder::new_multi_thread) runtime
@@ -34,6 +34,7 @@ pub fn list_devices_async(hidapi: &HidApi) -> Vec<(Kind, String)> {
 #[derive(Clone)]
 pub struct AsyncAjazz {
     kind: Kind,
+    /// Human-readable device product name.
     pub product_name: String,
     device: Arc<Mutex<Ajazz>>,
 }
@@ -122,6 +123,15 @@ impl AsyncAjazz {
         }
     }
 
+    /// Reads input with a blocking timeout, avoiding a busy polling loop.
+    pub async fn read_input_timeout(
+        &self,
+        timeout: Duration,
+    ) -> Result<AjazzInput, AjazzError> {
+        let device = self.device.lock().await;
+        block_in_place(move || device.read_input(Some(timeout)))
+    }
+
     /// Resets the device
     pub async fn reset(&self) -> Result<(), AjazzError> {
         let device = self.device.lock().await;
@@ -171,32 +181,27 @@ impl AsyncAjazz {
         block_in_place(move || device.set_button_image_data(key, image_data))
     }
 
+    /// Sets an image on one of the four zones of the AKP05E_552A touchscreen strip.
+    pub async fn set_touch_zone_image(
+        &self,
+        touch: u8,
+        image: DynamicImage,
+    ) -> Result<(), AjazzError> {
+        let device = self.device.lock().await;
+        block_in_place(move || device.set_touch_zone_image(touch, image))
+    }
+
+    /// Clears one of the four zones of the AKP05E_552A touchscreen strip.
+    pub async fn clear_touch_zone_image(&self, touch: u8) -> Result<(), AjazzError> {
+        let device = self.device.lock().await;
+        block_in_place(move || device.clear_touch_zone_image(touch))
+    }
+
     /// Set logo image
     pub async fn set_logo_image(&self, image: DynamicImage) -> Result<(), AjazzError> {
         let device = self.device.lock().await;
         block_in_place(move || device.set_logo_image(image))
     }
-
-    /// Writes image data to Stream Deck device's lcd strip/screen as region.
-    /// Only Stream Deck Plus supports writing LCD regions, for Stream Deck Neo use write_lcd_fill
-    pub async fn write_lcd(&self, x: u16, y: u16, rect: &ImageRect) -> Result<(), AjazzError> {
-        let device = self.device.lock().await;
-        block_in_place(move || device.write_lcd(x, y, rect))
-    }
-
-    /// Writes image data to Stream Deck device's lcd strip/screen as full fill
-    ///
-    /// You can convert your images into proper image_data like this:
-    /// ```
-    /// use elgato_streamdeck::images::{convert_image_with_format_async};
-    /// let image_data = convert_image_with_format_async(device.kind().lcd_image_format(), image).await.unwrap();
-    /// device.write_lcd_fill(&image_data).await;
-    /// ```
-    pub async fn write_lcd_fill(&self, image_data: &[u8]) -> Result<(), AjazzError> {
-        let device = self.device.lock().await;
-        block_in_place(move || device.write_lcd_fill(image_data))
-    }
-
 
     /// Sleeps the device
     pub async fn sleep(&self) -> Result<(), AjazzError> {
@@ -248,5 +253,13 @@ impl AsyncDeviceStateReader {
 
         let updates = handle_input_state_change(input, &mut current_state)?;
         Ok(updates)
+    }
+
+    /// Reads states with a blocking timeout and returns any resulting events.
+    pub async fn read_timeout(&self, timeout: Duration) -> Result<Vec<Event>, AjazzError> {
+        let input = self.device.read_input_timeout(timeout).await?;
+        let mut current_state = self.states.lock().await;
+
+        handle_input_state_change(input, &mut current_state)
     }
 }
