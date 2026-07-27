@@ -76,15 +76,14 @@
 			listen("switch_profile", async ({ payload }: { payload: { device: string; profile: string } }) => {
 				if (!devices[payload.device]) return;
 				try {
+					const profile: Profile = await invoke("get_selected_profile", { device: payload.device });
+					if (!devices[payload.device]) return;
+					selectedProfiles = { ...selectedProfiles, [payload.device]: profile };
 					if (payload.device == value) {
-						await $profileManager?.setProfile(payload.profile);
-					} else {
-						await invoke("set_selected_profile", { device: payload.device, id: payload.profile });
-						const profile: Profile = await invoke("get_selected_profile", { device: payload.device });
-						if (devices[payload.device]) selectedProfiles = { ...selectedProfiles, [payload.device]: profile };
+						$profileManager?.applySelectedProfile(profile);
 					}
-				} catch {
-					// Ignore profile events racing with a device disconnect.
+				} catch (error) {
+					console.error(`Unable to refresh switched profile ${payload.profile} for device ${payload.device}:`, error);
 				}
 			}),
 		);

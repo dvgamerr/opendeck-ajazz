@@ -26,6 +26,7 @@ pub struct SwitchProfileEvent {
 pub fn init_application_watcher() {
 	tokio::spawn(async move {
 		let mut previous = String::new();
+		let mut previous_profiles = HashMap::<String, String>::new();
 		let app_handle = crate::APP_HANDLE.get().unwrap();
 		loop {
 			let app_name = if let Ok(win) = get_active_window() {
@@ -40,24 +41,49 @@ pub fn init_application_watcher() {
 			};
 
 			if app_name != previous {
-				let application_profiles = &APPLICATION_PROFILES.read().await.value;
+				let application_profiles = APPLICATION_PROFILES.read().await.value.clone();
 				let application = application_profiles.get(&app_name);
 				let default = application_profiles.get("opendeck_default");
-				for value in crate::shared::DEVICES.iter() {
-					let device = value.key();
-					let Some(profile) = application.and_then(|d| d.get(device)).or(default.and_then(|d| d.get(device))) else {
+				let devices: Vec<String> = crate::shared::DEVICES.iter().map(|value| value.key().clone()).collect();
+				for device in devices {
+					let Ok(current_profile) = crate::store::profiles::DEVICE_STORES.write().await.get_selected_profile(&device) else {
 						continue;
 					};
-					if crate::store::profiles::DEVICE_STORES.write().await.get_selected_profile(device).ok().as_ref() == Some(profile) {
+
+					let application_profile = application.and_then(|profiles| profiles.get(&device)).cloned();
+					let (profile, remember_current, restore_previous) = if let Some(profile) = application_profile {
+						(profile, !previous_profiles.contains_key(&device), false)
+					} else if let Some(profile) = previous_profiles.get(&device).cloned() {
+						(profile, false, true)
+					} else if let Some(profile) = default.and_then(|profiles| profiles.get(&device)).cloned() {
+						(profile, false, false)
+					} else {
 						continue;
+					};
+
+					if current_profile != profile {
+						match crate::events::frontend::profiles::set_selected_profile(device.clone(), profile.clone()).await {
+							Ok(()) => {
+								let _ = app_handle.get_webview_window("main").unwrap().emit(
+									"switch_profile",
+									SwitchProfileEvent {
+										device: device.clone(),
+										profile: profile.clone(),
+									},
+								);
+							}
+							Err(error) => {
+								log::error!("Failed to switch device {device} to profile {profile} for application {app_name}: {error}");
+								continue;
+							}
+						}
 					}
-					let _ = app_handle.get_webview_window("main").unwrap().emit(
-						"switch_profile",
-						SwitchProfileEvent {
-							device: device.clone(),
-							profile: profile.clone(),
-						},
-					);
+
+					if remember_current {
+						previous_profiles.insert(device.clone(), current_profile);
+					} else if restore_previous {
+						previous_profiles.remove(&device);
+					}
 				}
 				previous = app_name;
 			}

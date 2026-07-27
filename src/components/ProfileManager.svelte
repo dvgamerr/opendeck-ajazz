@@ -40,6 +40,20 @@
 	export let device: DeviceInfo;
 
 	export let profile: Profile;
+	export function applySelectedProfile(selected: Profile) {
+		profile = selected;
+		value = selected.id;
+		oldValue = selected.id;
+
+		const folder = selected.id.includes("/") ? selected.id.split("/")[0] : "";
+		if (folders[folder]) {
+			if (!folders[folder].includes(selected.id)) folders[folder].push(selected.id);
+		} else {
+			folders[folder] = [selected.id];
+		}
+		folders = folders;
+	}
+
 	export async function setProfile(id: string) {
 		if (!device || !id) return;
 		if (value != id) {
@@ -95,9 +109,43 @@
 	let applicationProfiles: { [appName: string]: { [device: string]: string } } = {};
 	let applicationProfilesLoaded = false;
 	let lastSavedApplicationProfiles = "";
+	let applicationProfilesSaving = false;
+	let pendingApplicationProfiles: { [appName: string]: { [device: string]: string } } | undefined;
+	let applicationProfilesError = "";
 
 	function cleanApplicationProfiles(value: { [appName: string]: { [device: string]: string } }) {
-		return Object.fromEntries(Object.entries(value).filter(([_, devices]) => Object.values(devices).some((profile) => profile)));
+		return Object.fromEntries(
+			Object.entries(value)
+				.map(([appName, devices]) => [appName, Object.fromEntries(Object.entries(devices).filter(([_, profile]) => profile))])
+				.filter(([_, devices]) => Object.keys(devices).length),
+		);
+	}
+
+	async function persistApplicationProfiles(value: { [appName: string]: { [device: string]: string } }) {
+		pendingApplicationProfiles = cleanApplicationProfiles(value);
+		if (applicationProfilesSaving) return;
+
+		applicationProfilesSaving = true;
+		try {
+			while (pendingApplicationProfiles) {
+				const next = pendingApplicationProfiles;
+				pendingApplicationProfiles = undefined;
+				const serialized = JSON.stringify(next);
+				if (serialized == lastSavedApplicationProfiles) continue;
+
+				try {
+					await invoke("set_application_profiles", { value: next });
+					lastSavedApplicationProfiles = serialized;
+					applicationProfilesError = "";
+				} catch (error) {
+					applicationProfilesError = `Unable to save application profiles: ${String(error)}`;
+					console.error(applicationProfilesError);
+					break;
+				}
+			}
+		} finally {
+			applicationProfilesSaving = false;
+		}
 	}
 
 	onMount(() => {
@@ -115,7 +163,10 @@
 				lastSavedApplicationProfiles = JSON.stringify(applicationProfiles);
 				applicationProfilesLoaded = true;
 			})
-			.catch(() => {});
+			.catch((error) => {
+				applicationProfilesError = `Unable to load application profiles: ${String(error)}`;
+				console.error(applicationProfilesError);
+			});
 
 		keep(
 			listen("rerender_images", async () => {
@@ -141,8 +192,13 @@
 	let applicationsAddProfile: string = "opendeck_select_profile";
 	$: {
 		if (applicationsAddAppName != "opendeck_select_application" && applicationsAddProfile != "opendeck_select_profile") {
-			applicationProfiles[applicationsAddAppName] ||= {};
-			applicationProfiles[applicationsAddAppName][device.id] = applicationsAddProfile;
+			applicationProfiles = {
+				...applicationProfiles,
+				[applicationsAddAppName]: {
+					...applicationProfiles[applicationsAddAppName],
+					[device.id]: applicationsAddProfile,
+				},
+			};
 			applicationsAddAppName = "opendeck_select_application";
 			applicationsAddProfile = "opendeck_select_profile";
 		}
@@ -152,9 +208,8 @@
 			const cleaned = cleanApplicationProfiles(applicationProfiles);
 			const serialized = JSON.stringify(cleaned);
 			if (serialized != lastSavedApplicationProfiles) {
-				lastSavedApplicationProfiles = serialized;
-				applicationProfiles = cleaned;
-				void invoke("set_application_profiles", { value: applicationProfiles }).catch(() => {});
+				if (serialized != JSON.stringify(applicationProfiles)) applicationProfiles = cleaned;
+				void persistApplicationProfiles(cleaned);
 			}
 		}
 	}
@@ -242,7 +297,12 @@
 	<button class="mr-1 float-right text-xl dark:text-neutral-300" on:click={() => (showApplicationManager = false)}>✕</button>
 	<h2 class="text-xl font-semibold dark:text-neutral-300">{device.name}</h2>
 	<span class="text-sm dark:text-neutral-400">If your application isn't listed, try switching to it and back again.</span>
-	<span class="text-sm dark:text-neutral-400">The 'default profile' will activate when the focussed application has no profile associated with it.</span>
+	<span class="text-sm dark:text-neutral-400">
+		When a mapped application becomes inactive, the previous profile is restored. The 'default profile' is used when no previous profile is waiting to be restored.
+	</span>
+	{#if applicationProfilesError}
+		<span class="block text-sm text-red-500">{applicationProfilesError}</span>
+	{/if}
 
 	<table class="w-full dark:text-neutral-300 divide-y">
 		<tbody>
