@@ -1,6 +1,9 @@
 <script lang="ts">
+	import type { DeviceInfo } from "$lib/DeviceInfo";
+
 	import Gear from "phosphor-svelte/lib/Gear";
 	import Star from "phosphor-svelte/lib/Star";
+	import DeviceStartupImage from "./DeviceStartupImage.svelte";
 	import Popup from "./Popup.svelte";
 	import Tooltip from "./Tooltip.svelte";
 
@@ -11,8 +14,12 @@
 	import { listen } from "@tauri-apps/api/event";
 	import { onMount } from "svelte";
 
+	export let device: DeviceInfo | undefined = undefined;
+
 	let showPopup: boolean;
 	let buildInfo: string;
+	let activeTab: "general" | "startup-image" = "general";
+	$: startupImageDevice = device?.startup_image ? device : undefined;
 
 	function updateTheme(darktheme: boolean) {
 		const theme = darktheme ? "dark" : "light";
@@ -84,7 +91,14 @@
 		<button type="button" class="btn btn-circle btn-ghost ml-auto" aria-label="Close settings" on:click={() => (showPopup = false)}>✕</button>
 	</header>
 
-	{#if $settings}
+	<div role="tablist" class="tabs tabs-border mt-4">
+		<button type="button" role="tab" class:tab-active={activeTab == "general"} class="tab" aria-selected={activeTab == "general"} on:click={() => (activeTab = "general")}>General</button>
+		<button type="button" role="tab" class:tab-active={activeTab == "startup-image"} class="tab" aria-selected={activeTab == "startup-image"} on:click={() => (activeTab = "startup-image")}>
+			Startup image
+		</button>
+	</div>
+
+	{#if activeTab == "general" && $settings}
 		<div class="mt-5 grid gap-5 xl:grid-cols-2">
 			<section class="card border border-base-300 bg-base-200">
 				<div class="card-body gap-4">
@@ -162,14 +176,31 @@
 		</div>
 	{/if}
 
-	<footer class="mt-5 flex flex-wrap items-center gap-2 border-t border-base-300 pt-4">
-		<button type="button" class="btn btn-sm" on:click={() => invoke("open_config_directory")}>Open config directory</button>
-		<button type="button" class="btn btn-sm" on:click={() => invoke("open_log_directory")}>Open log directory</button>
-		<span class="ml-2 text-xs text-base-content/50">{@html buildInfo}</span>
-		<div class="ml-auto flex items-center gap-1 text-sm text-base-content/60">
-			<span>Please leave a</span>
-			<button type="button" on:click={() => invoke("open_url", { url: "https://github.com/mistweaverco/opendeck-ajazz" })} class="link link-primary">star on GitHub</button>
-			<Star weight="fill" class="text-warning" />
+	{#if activeTab == "startup-image"}
+		<div class="relative mt-5">
+			{#if startupImageDevice}
+				<DeviceStartupImage device={startupImageDevice} />
+			{:else}
+				<section class="card border border-base-300 bg-base-200">
+					<div class="card-body items-center py-16 text-center">
+						<h3 class="card-title">No supported device selected</h3>
+						<p class="max-w-lg text-sm text-base-content/60">Connect and select an Ajazz device to configure its startup image.</p>
+					</div>
+				</section>
+			{/if}
 		</div>
-	</footer>
+	{/if}
+
+	{#if activeTab == "general"}
+		<footer class="mt-5 flex flex-wrap items-center gap-2 border-t border-base-300 pt-4">
+			<button type="button" class="btn btn-sm" on:click={() => invoke("open_config_directory")}>Open config directory</button>
+			<button type="button" class="btn btn-sm" on:click={() => invoke("open_log_directory")}>Open log directory</button>
+			<span class="ml-2 text-xs text-base-content/50">{@html buildInfo}</span>
+			<div class="ml-auto flex items-center gap-1 text-sm text-base-content/60">
+				<span>Please leave a</span>
+				<button type="button" on:click={() => invoke("open_url", { url: "https://github.com/mistweaverco/opendeck-ajazz" })} class="link link-primary">star on GitHub</button>
+				<Star weight="fill" class="text-warning" />
+			</div>
+		</footer>
+	{/if}
 </Popup>

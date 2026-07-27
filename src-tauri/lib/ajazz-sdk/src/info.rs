@@ -269,10 +269,17 @@ impl Kind {
                 mirror: ImageMirroring::None,
             },
 
-            Kind::Akp815 | Kind::Akp05E552A => ImageFormat {
+            Kind::Akp815 => ImageFormat {
                 mode: ImageMode::JPEG,
                 size: (800, 480),
                 rotation: ImageRotation::Rot0,
+                mirror: ImageMirroring::None,
+            },
+
+            Kind::Akp05E552A => ImageFormat {
+                mode: ImageMode::JPEG,
+                size: (800, 480),
+                rotation: ImageRotation::Rot180,
                 mirror: ImageMirroring::None,
             },
         }
@@ -327,7 +334,7 @@ impl Kind {
 
 #[cfg(test)]
 mod tests {
-    use super::Kind;
+    use super::{ImageRotation, Kind};
 
     #[test]
     fn akp05e_552a_metadata_matches_the_physical_layout() {
@@ -338,6 +345,10 @@ mod tests {
         assert_eq!(kind.encoder_count(), 4);
         assert_eq!(kind.lcd_strip_size(), Some((800, 100)));
         assert_eq!(kind.boot_logo_size(), Some((800, 480)));
+        assert!(matches!(
+            kind.logo_image_format().rotation,
+            ImageRotation::Rot180
+        ));
     }
 
     #[test]

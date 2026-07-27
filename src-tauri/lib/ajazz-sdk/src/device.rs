@@ -1,12 +1,15 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::RwLock;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use hidapi::{HidApi, HidDevice, HidError};
 use image::DynamicImage;
 
-use crate::images::{convert_image, convert_image_with_format, WriteImageParameters};
+use crate::images::{
+    WriteImageParameters, convert_image, convert_image_with_format,
+    convert_image_with_format_max_size,
+};
 use crate::info::Kind;
 use crate::hid::is_supported_interface;
 use crate::protocol::{codes, extract_string, request, AjazzProtocolParser, AjazzRequestBuilder};
@@ -320,12 +323,40 @@ impl Ajazz {
             return Err(AjazzError::UnsupportedOperation);
         }
 
-        let image_data = convert_image_with_format(self.kind.logo_image_format(), image)?;
+        let image_data = if self.kind.is_v2_api() {
+            convert_image_with_format_max_size(
+                self.kind.logo_image_format(),
+                image,
+                u16::MAX as usize,
+            )?
+        } else {
+            convert_image_with_format(self.kind.logo_image_format(), image)?
+        };
+        if self.kind.is_v2_api() && image_data.len() > u16::MAX as usize {
+            return Err(AjazzError::ImageDataTooLarge(
+                image_data.len(),
+                u16::MAX as usize,
+            ));
+        }
         self.hid
             .write(self.kind.logo_image_packet(&image_data).as_slice())?;
-        self.hid.write(self.kind.flush_packet().as_slice())?;
-        self.write_image_data_reports(&image_data, WriteImageParameters::for_kind(self.kind))?;
-        self.assert_write_complete()?;
+
+        if self.kind == Kind::Akp05E552A {
+            // This v2 firmware commits a boot logo when STP follows the image payload
+            // and does not emit the legacy ACK report used by older devices.
+            self.write_image_data_reports(
+                &image_data,
+                WriteImageParameters::for_kind(self.kind),
+            )?;
+            self.hid.write(self.kind.flush_packet().as_slice())?;
+        } else {
+            self.hid.write(self.kind.flush_packet().as_slice())?;
+            self.write_image_data_reports(
+                &image_data,
+                WriteImageParameters::for_kind(self.kind),
+            )?;
+            self.assert_write_complete()?;
+        }
 
         Ok(())
     }
@@ -407,16 +438,21 @@ impl Ajazz {
     }
 
     fn assert_write_complete(&self) -> Result<(), AjazzError> {
-        let data = self.read_data(512, Some(Duration::from_millis(1000)))?;
-        if data.len() != 512 {
-            return Err(AjazzError::BadData);
-        }
+        let deadline = Instant::now() + Duration::from_millis(1000);
+        loop {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                return Err(AjazzError::NoAck);
+            }
 
-        if !self.kind.is_ack_ok(&data) {
-            return Err(AjazzError::NoAck);
+            let data = self.read_data(codes::INPUT_PACKET_LENGTH, Some(remaining))?;
+            if data.is_empty() {
+                return Err(AjazzError::NoAck);
+            }
+            if self.kind.is_ack_ok(&data) {
+                return Ok(());
+            }
         }
-
-        Ok(())
     }
 
     /// Reads data from [HidDevice]. Blocking mode is used if timeout is specified

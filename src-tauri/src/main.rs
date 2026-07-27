@@ -153,23 +153,11 @@ async fn main() {
 				Ordering::Greater => {
 					let old_version = settings.value.version.clone();
 					settings.value.version = built_info::PKG_VERSION.to_owned();
-					settings.save()?;
 					if old_version == "0.0.0" {
-						app.dialog()
-							.message(format!(
-								r#"Thanks for installing {PRODUCT_NAME}!
-If you have any issues, please reach out on any of the support channels listed on GitHub (and make sure to star the project while you're there!).
-
-Some minimal statistics (such as operating system and plugins installed) will be collected from the next time the app starts.
-If you do not wish to support development in this way, please disable statistics in the settings.
-
-Enjoy!"#,
-							))
-							.title(format!("{PRODUCT_NAME} has successfully been installed"))
-							.kind(MessageDialogKind::Info)
-							.show(|_| ());
 						settings.value.statistics = false;
-					} else {
+					}
+					settings.save()?;
+					if old_version != "0.0.0" {
 						app.dialog()
 							.message(format!(
 								r#"{PRODUCT_NAME} has been updated to v{}!

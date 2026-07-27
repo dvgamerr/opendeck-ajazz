@@ -73,6 +73,22 @@ pub fn convert_image_with_format(
     image_format: ImageFormat,
     image: DynamicImage,
 ) -> Result<Vec<u8>, ImageError> {
+    convert_image_with_format_and_max_size(image_format, image, None)
+}
+
+pub(crate) fn convert_image_with_format_max_size(
+    image_format: ImageFormat,
+    image: DynamicImage,
+    max_size: usize,
+) -> Result<Vec<u8>, ImageError> {
+    convert_image_with_format_and_max_size(image_format, image, Some(max_size))
+}
+
+fn convert_image_with_format_and_max_size(
+    image_format: ImageFormat,
+    image: DynamicImage,
+    max_size: Option<usize>,
+) -> Result<Vec<u8>, ImageError> {
     // Ensuring size of the image
     let (ws, hs) = image_format.size;
 
@@ -100,10 +116,18 @@ pub fn convert_image_with_format(
     match image_format.mode {
         ImageMode::None => Ok(vec![]),
         ImageMode::JPEG => {
-            let mut buf = Vec::new();
-            let mut encoder = JpegEncoder::new_with_quality(&mut buf, 90);
-            encoder.encode(&image_data, ws as u32, hs as u32, ColorType::Rgb8.into())?;
-            Ok(buf)
+            let mut last_attempt = Vec::new();
+            for quality in [90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 1] {
+                let mut buf = Vec::new();
+                let mut encoder = JpegEncoder::new_with_quality(&mut buf, quality);
+                encoder.encode(&image_data, ws as u32, hs as u32, ColorType::Rgb8.into())?;
+
+                if max_size.map(|limit| buf.len() <= limit).unwrap_or(true) {
+                    return Ok(buf);
+                }
+                last_attempt = buf;
+            }
+            Ok(last_attempt)
         }
     }
 }
@@ -188,5 +212,39 @@ impl WriteImageParameters {
             image_report_length,
             image_report_payload_length,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use image::{DynamicImage, ImageBuffer, Rgb};
+
+    use super::{
+        ImageFormat, ImageMirroring, ImageMode, ImageRotation, convert_image_with_format,
+        convert_image_with_format_max_size,
+    };
+
+    #[test]
+    fn jpeg_can_be_reduced_to_fit_a_sixteen_bit_protocol_length() {
+        let image = DynamicImage::ImageRgb8(ImageBuffer::from_fn(800, 480, |x, y| {
+            Rgb([
+                (x.wrapping_mul(37) + y.wrapping_mul(17)) as u8,
+                (x.wrapping_mul(13) + y.wrapping_mul(43)) as u8,
+                (x.wrapping_mul(53) + y.wrapping_mul(29)) as u8,
+            ])
+        }));
+        let format = ImageFormat {
+            mode: ImageMode::JPEG,
+            size: (800, 480),
+            rotation: ImageRotation::Rot0,
+            mirror: ImageMirroring::None,
+        };
+
+        let unrestricted = convert_image_with_format(format, image.clone()).unwrap();
+        assert!(unrestricted.len() > u16::MAX as usize);
+
+        let limited =
+            convert_image_with_format_max_size(format, image, u16::MAX as usize).unwrap();
+        assert!(limited.len() <= u16::MAX as usize);
     }
 }

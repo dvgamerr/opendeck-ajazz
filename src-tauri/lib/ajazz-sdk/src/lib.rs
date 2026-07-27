@@ -85,6 +85,10 @@ pub enum AjazzError {
     #[error("Invalid image size: {0}x{1}, expected {2}x{3}")]
     InvalidImageSize(usize, usize, usize, usize),
 
+    /// Encoded image data exceeds the device protocol limit
+    #[error("Encoded image data is too large: {0} bytes, maximum {1} bytes")]
+    ImageDataTooLarge(usize, usize),
+
     /// Device didn't respond with ACK
     #[error("Device didn't respond with ACK")]
     NoAck,
