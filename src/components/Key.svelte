@@ -108,7 +108,12 @@
 
 		keep(
 			listen("update_state", ({ payload }: { payload: { context: string; contents: ActionInstance | null } }) => {
-				if (payload.context == slot?.context) slot = payload.contents;
+				if (payload.context == slot?.context) {
+					// Keep the bound profile slot in sync with plugin-driven state changes.
+					// Otherwise, the next profile reassignment restores stale state.
+					inslot = payload.contents;
+					slot = payload.contents;
+				}
 			}),
 		);
 		keep(
