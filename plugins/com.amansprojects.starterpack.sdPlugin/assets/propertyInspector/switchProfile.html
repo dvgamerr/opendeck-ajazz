@@ -36,21 +36,23 @@
 				};
 			}
 		</script>
-		<link rel="stylesheet" href="sdpi.css" />
-		<link rel="stylesheet" href="app-settings.css" />
 	</head>
-	<body>
-		<header class="options-header">
-			<span>Switch Profile</span>
-			<small>Action options</small>
-		</header>
-		<div class="sdpi-item">
-			<div class="sdpi-item-label">Device ID</div>
-			<input id="device" oninput="update()" class="sdpi-item-value" />
-		</div>
-		<div class="sdpi-item">
-			<div class="sdpi-item-label">Profile</div>
-			<input id="profile" oninput="update()" class="sdpi-item-value" />
-		</div>
+	<body class="bg-base-200 text-base-content">
+		<section class="card bg-base-100">
+			<div class="card-body">
+				<header>
+					<h1 class="card-title">Switch Profile</h1>
+					<span class="badge badge-neutral">Action options</span>
+				</header>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Device ID</legend>
+					<input id="device" oninput="update()" class="input input-bordered" />
+				</fieldset>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Profile</legend>
+					<input id="profile" oninput="update()" class="input input-bordered" />
+				</fieldset>
+			</div>
+		</section>
 	</body>
 </html>

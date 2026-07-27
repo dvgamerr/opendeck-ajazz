@@ -27,7 +27,7 @@
 				clockwise.value = inActionInfo.payload.settings.clockwise ?? "";
 
 				if (inActionInfo.payload.controller == "Encoder") {
-					document.getElementById("encoder").style.display = "block";
+					document.getElementById("encoder").hidden = false;
 					document.getElementById("down-label").innerText = "Dial down";
 					document.getElementById("up-label").innerText = "Dial up";
 					down.placeholder = down.placeholder.replace("key", "dial");
@@ -50,46 +50,43 @@
 				};
 			}
 		</script>
-		<link rel="stylesheet" href="sdpi.css" />
-		<link rel="stylesheet" href="app-settings.css" />
 	</head>
-	<body>
-		<header class="options-header">
-			<span>Input Simulation</span>
-			<small>Action options</small>
-		</header>
-		<div type="textarea" class="sdpi-item">
-			<div class="sdpi-item-label" id="down-label">Key down</div>
-			<span class="sdpi-item-value textarea">
-				<textarea oninput="update()" id="down" style="font-family: monospace" placeholder="Input to be executed on key down"></textarea>
-			</span>
-		</div>
-		<div type="textarea" class="sdpi-item">
-			<div class="sdpi-item-label" id="up-label">Key up</div>
-			<span class="sdpi-item-value textarea">
-				<textarea oninput="update()" id="up" style="font-family: monospace" placeholder="Input to be executed on key up"></textarea>
-			</span>
-		</div>
-		<div id="encoder" style="display: none">
-			<div type="textarea" class="sdpi-item">
-				<div class="sdpi-item-label">Dial rotate anticlockwise</div>
-				<span class="sdpi-item-value textarea">
-					<textarea oninput="update()" id="anticlockwise" style="font-family: monospace" placeholder="Input to be executed on dial rotate anticlockwise"></textarea>
-				</span>
+	<body class="bg-base-200 text-base-content">
+		<section class="card bg-base-100">
+			<div class="card-body">
+				<header>
+					<h1 class="card-title">Input Simulation</h1>
+					<span class="badge badge-neutral">Action options</span>
+				</header>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend" id="down-label">Key down</legend>
+					<textarea oninput="update()" id="down" class="textarea textarea-bordered" placeholder="Input to be executed on key down"></textarea>
+				</fieldset>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend" id="up-label">Key up</legend>
+					<textarea oninput="update()" id="up" class="textarea textarea-bordered" placeholder="Input to be executed on key up"></textarea>
+				</fieldset>
+				<div id="encoder" hidden>
+					<fieldset class="fieldset">
+						<legend class="fieldset-legend">Dial rotate anticlockwise</legend>
+						<textarea oninput="update()" id="anticlockwise" class="textarea textarea-bordered" placeholder="Input to be executed on dial rotate anticlockwise"></textarea>
+					</fieldset>
+					<fieldset class="fieldset">
+						<legend class="fieldset-legend">Dial rotate clockwise</legend>
+						<textarea oninput="update()" id="clockwise" class="textarea textarea-bordered" placeholder="Input to be executed on dial rotate clockwise"></textarea>
+					</fieldset>
+				</div>
 			</div>
-			<div type="textarea" class="sdpi-item">
-				<div class="sdpi-item-label">Dial rotate clockwise</div>
-				<span class="sdpi-item-value textarea">
-					<textarea oninput="update()" id="clockwise" style="font-family: monospace" placeholder="Input to be executed on dial rotate clockwise"></textarea>
-				</span>
-			</div>
-		</div>
-		<details open>
-			<summary style="margin-bottom: 0.25rem; font-size: 1.25rem">Details</summary>
-			<code style="word-break: break-all">[t("hello world!"),m(10,10,r),s(5),b(l),k(ctrl,p),k(uni('a')),k(ctrl,r)]</code>
-			<p>The example above becomes something like this:</p>
-			<!-- prettier-ignore -->
-			<code style="white-space: pre;">[
+		</section>
+		<div class="collapse collapse-arrow bg-base-100">
+			<input type="checkbox" checked />
+			<div class="collapse-title">Details</div>
+			<div class="collapse-content">
+				<code>[t("hello world!"),m(10,10,r),s(5),b(l),k(ctrl,p),k(uni('a')),k(ctrl,r)]</code>
+				<p>The example above becomes something like this:</p>
+				<div class="mockup-code">
+					<!-- prettier-ignore -->
+					<pre><code>[
 	Text("hello world!"),
 	MoveMouse(10, 10, Relative),
 	Scroll(5, Vertical),
@@ -97,19 +94,17 @@
 	Key(Control, Press),
 	Key(Unicode('a'), Click),
 	Key(Control, Release),
-]</code>
-			<p>
-				As you can see, <code>Vertical</code> is the default for the <code>Scroll</code> action if an axis is not specified, <code>Click</code> (press followed by release) is the default for the
-				<code>Button</code> and <code>Key</code> actions if a direction is not specified, and so on.
-			</p>
-			<!-- prettier-ignore -->
-			<p>
-				You can find a list of all of the keycodes
-				<span style="color: dodgerblue; cursor: pointer;" onclick="window.open('https://github.com/enigo-rs/enigo/blob/v0.5.0/src/keycodes.rs', '_blank');">here</span>.
-				Please note that not all keycodes are available on all operating systems, as is marked on each such keycode on the line above it.
-				You can find the possible buttons, directions, axis and coordinate types
-				<span style="color: dodgerblue; cursor: pointer;" onclick="window.open('https://github.com/enigo-rs/enigo/blob/v0.5.0/src/lib.rs', '_blank');">here</span>.
-			</p>
-		</details>
+]					</code></pre>
+				</div>
+				<p><code>Vertical</code> is the default for <code>Scroll</code>. <code>Click</code> is the default direction for <code>Button</code> and <code>Key</code>.</p>
+				<p>
+					View the
+					<button type="button" class="link link-primary" onclick="window.open('https://github.com/enigo-rs/enigo/blob/v0.5.0/src/keycodes.rs', '_blank')">keycodes</button>
+					or
+					<button type="button" class="link link-primary" onclick="window.open('https://github.com/enigo-rs/enigo/blob/v0.5.0/src/lib.rs', '_blank')">buttons, directions, axes, and coordinates</button
+					>.
+				</p>
+			</div>
+		</div>
 	</body>
 </html>

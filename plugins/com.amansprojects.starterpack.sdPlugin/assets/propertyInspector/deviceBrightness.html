@@ -9,7 +9,7 @@
 				inActionInfo = JSON.parse(inActionInfo);
 
 				if (inActionInfo.payload.controller == "Encoder") {
-					document.documentElement.innerHTML = "";
+					document.body.replaceChildren();
 					return;
 				}
 
@@ -28,10 +28,10 @@
 				const value = document.getElementById("value");
 				value.value = (inActionInfo.payload.settings.value ?? 50).toString();
 				const valueDisplay = document.getElementById("value-display");
-				valueDisplay.innerText = value.value;
+				valueDisplay.innerText = value.value + "%";
 
 				update = () => {
-					valueDisplay.innerText = value.value;
+					valueDisplay.innerText = value.value + "%";
 					websocket.send(
 						JSON.stringify({
 							event: "setSettings",
@@ -45,25 +45,27 @@
 				};
 			}
 		</script>
-		<link rel="stylesheet" href="sdpi.css" />
-		<link rel="stylesheet" href="app-settings.css" />
 	</head>
-	<body>
-		<header class="options-header">
-			<span>Device Brightness</span>
-			<small>Action options</small>
-		</header>
-		<div class="sdpi-item">
-			<div class="sdpi-item-label">Action</div>
-			<select id="action" onchange="update()" class="sdpi-item-value select">
-				<option value="set">Set</option>
-				<option value="increase">Increase</option>
-				<option value="decrease">Decrease</option>
-			</select>
-		</div>
-		<div class="sdpi-item">
-			<div class="sdpi-item-label">Value (<span id="value-display"></span>%)</div>
-			<input id="value" oninput="update()" class="sdpi-item-value" type="range" min="0" max="100" />
-		</div>
+	<body class="bg-base-200 text-base-content">
+		<section class="card bg-base-100">
+			<div class="card-body">
+				<header>
+					<h1 class="card-title">Device Brightness</h1>
+					<span class="badge badge-neutral">Action options</span>
+				</header>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Action</legend>
+					<select id="action" onchange="update()" class="select select-bordered">
+						<option value="set">Set</option>
+						<option value="increase">Increase</option>
+						<option value="decrease">Decrease</option>
+					</select>
+				</fieldset>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Value <span id="value-display" class="badge badge-primary"></span></legend>
+					<input id="value" oninput="update()" class="range range-primary" type="range" min="0" max="100" />
+				</fieldset>
+			</div>
+		</section>
 	</body>
 </html>

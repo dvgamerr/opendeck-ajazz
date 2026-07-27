@@ -23,23 +23,36 @@
 					);
 			}
 		</script>
-		<link rel="stylesheet" href="sdpi.css" />
-		<link rel="stylesheet" href="app-settings.css" />
 	</head>
-	<body>
-		<header class="options-header">
-			<span>Volume + Sound Device</span>
-			<small>Encoder options</small>
-		</header>
-		<div class="gesture-grid">
-			<div><b>↻</b><span>VOLUME</span></div>
-			<div><b>1X</b><span>NEXT</span></div>
-			<div><b>2X</b><span>PREVIOUS</span></div>
-		</div>
-		<div class="sdpi-item">
-			<div class="sdpi-item-label">STEP <output id="step-output"></output></div>
-			<input id="step" class="sdpi-item-value" type="range" min="1" max="20" oninput="document.getElementById('step-output').textContent = value + '%'" onchange="save()" />
-		</div>
-		<p class="options-note">Adjust the amount changed by each dial step.</p>
+	<body class="bg-base-200 text-base-content">
+		<section class="card bg-base-100">
+			<div class="card-body">
+				<header>
+					<h1 class="card-title">Volume + Sound Device</h1>
+					<span class="badge badge-neutral">Encoder options</span>
+				</header>
+				<div class="stats">
+					<div class="stat">
+						<div class="stat-title">Volume</div>
+						<div class="stat-value">↻</div>
+					</div>
+					<div class="stat">
+						<div class="stat-title">Next</div>
+						<div class="stat-value">1X</div>
+					</div>
+					<div class="stat">
+						<div class="stat-title">Previous</div>
+						<div class="stat-value">2X</div>
+					</div>
+				</div>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Step <output id="step-output" class="badge badge-primary"></output></legend>
+					<input id="step" class="range range-primary" type="range" min="1" max="20" oninput="document.getElementById('step-output').textContent = value + '%'" onchange="save()" />
+				</fieldset>
+				<div role="alert" class="alert">
+					<span>Adjust the amount changed by each dial step.</span>
+				</div>
+			</div>
+		</section>
 	</body>
 </html>

@@ -18,7 +18,7 @@
 				};
 
 				if (inActionInfo.payload.controller == "Encoder") {
-					document.getElementById("encoder").style.display = "block";
+					document.getElementById("encoder").hidden = false;
 					document.getElementById("down-label").innerText = "Dial down";
 					document.getElementById("up-label").innerText = "Dial up";
 				}
@@ -51,40 +51,40 @@
 				};
 			}
 		</script>
-		<link rel="stylesheet" href="sdpi.css" />
-		<link rel="stylesheet" href="app-settings.css" />
 	</head>
-	<body>
-		<header class="options-header">
-			<span>Run Command</span>
-			<small>Action options</small>
-		</header>
-		<div class="sdpi-item">
-			<div class="sdpi-item-label" id="down-label">Key down</div>
-			<input id="down" oninput="update()" class="sdpi-item-value" />
-		</div>
-		<div class="sdpi-item">
-			<div class="sdpi-item-label" id="up-label">Key up</div>
-			<input id="up" oninput="update()" class="sdpi-item-value" />
-		</div>
-		<div id="encoder" style="display: none">
-			<div class="sdpi-item">
-				<div class="sdpi-item-label">Dial rotate</div>
-				<input id="rotate" oninput="update()" class="sdpi-item-value" />
+	<body class="bg-base-200 text-base-content">
+		<section class="card bg-base-100">
+			<div class="card-body">
+				<header>
+					<h1 class="card-title">Run Command</h1>
+					<span class="badge badge-neutral">Action options</span>
+				</header>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend" id="down-label">Key down</legend>
+					<input id="down" oninput="update()" class="input input-bordered" />
+				</fieldset>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend" id="up-label">Key up</legend>
+					<input id="up" oninput="update()" class="input input-bordered" />
+				</fieldset>
+				<div id="encoder" hidden>
+					<fieldset class="fieldset">
+						<legend class="fieldset-legend">Dial rotate</legend>
+						<input id="rotate" oninput="update()" class="input input-bordered" />
+					</fieldset>
+					<div role="alert" class="alert">
+						<span><code>%d</code> is replaced by the number of ticks turned; negative values are counterclockwise and positive values are clockwise.</span>
+					</div>
+				</div>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Write to path</legend>
+					<input id="file" oninput="update()" class="input input-bordered" />
+				</fieldset>
+				<label class="label">
+					<span>Show on key</span>
+					<input id="show" type="checkbox" oninput="update()" class="toggle toggle-primary" />
+				</label>
 			</div>
-			<p style="padding-left: 0.75rem; padding-right: 0.75rem">
-				Usages of <code>%d</code> will be substituted with the number of ticks turned, where negative values signify counterclockwise rotation and positive values signify clockwise rotation.
-			</p>
-		</div>
-		<br />
-		<div class="sdpi-item">
-			<div class="sdpi-item-label">Write to path</div>
-			<input id="file" oninput="update()" class="sdpi-item-value" />
-		</div>
-		<div class="sdpi-item">
-			<div class="sdpi-item-label">Show on key</div>
-			<input id="show" type="checkbox" oninput="update()" class="sdpi-item-value" />
-			<label for="show"><span></span></label>
-		</div>
+		</section>
 	</body>
 </html>
