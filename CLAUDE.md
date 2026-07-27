@@ -30,7 +30,7 @@ The touchscreen must look like one continuous screen in the UI. Do not draw four
 
 ### Display and image formats
 
-- Button image: JPEG, `100×100`, rotated 180°, no mirroring.
+- Button image: JPEG, `130×130`, rotated 180°, no mirroring.
 - Full LCD strip metadata: `800×100`, JPEG, rotated 180°.
 - Each touchscreen action-zone upload: JPEG, `176×112`, rotated 180°.
 - The UI renders the four `176×112` zone canvases as four adjacent `160×100` elements so their combined visible width matches the five-button grid.
@@ -185,6 +185,7 @@ For driver/protocol changes, also run the Rust checks and the `ajazz-sdk` tests.
 
 - product name `Ajazz AKP05E_552A`;
 - key layout `(2, 5)`;
+- key image size `(130, 130)`;
 - 4 touchscreen points;
 - 4 encoders;
 - LCD strip size `(800, 100)`.

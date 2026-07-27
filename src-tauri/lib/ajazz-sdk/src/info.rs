@@ -295,9 +295,16 @@ impl Kind {
                 mirror: ImageMirroring::Both,
             },
 
-            Kind::Akp815 | Kind::Akp05E552A => ImageFormat {
+            Kind::Akp815 => ImageFormat {
                 mode: ImageMode::JPEG,
                 size: (100, 100),
+                rotation: ImageRotation::Rot180,
+                mirror: ImageMirroring::None,
+            },
+
+            Kind::Akp05E552A => ImageFormat {
+                mode: ImageMode::JPEG,
+                size: (130, 130),
                 rotation: ImageRotation::Rot180,
                 mirror: ImageMirroring::None,
             },
@@ -345,6 +352,7 @@ mod tests {
         assert_eq!(kind.encoder_count(), 4);
         assert_eq!(kind.lcd_strip_size(), Some((800, 100)));
         assert_eq!(kind.boot_logo_size(), Some((800, 480)));
+        assert_eq!(kind.key_image_format().size, (130, 130));
         assert!(matches!(
             kind.logo_image_format().rotation,
             ImageRotation::Rot180
