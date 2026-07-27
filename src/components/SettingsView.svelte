@@ -15,13 +15,9 @@
 	let buildInfo: string;
 
 	function updateTheme(darktheme: boolean) {
-		if (darktheme) {
-			document.documentElement.classList.add("dark");
-		} else {
-			document.documentElement.classList.remove("dark");
-		}
-
 		const theme = darktheme ? "dark" : "light";
+		document.documentElement.dataset.theme = theme;
+		document.documentElement.classList.toggle("dark", darktheme);
 		document.querySelectorAll<HTMLIFrameElement>('iframe[title="Property inspector"]').forEach((iframe) => {
 			iframe.contentWindow?.postMessage({ event: "theme", theme }, "*");
 		});
@@ -68,7 +64,7 @@
 	});
 </script>
 
-<button class="app-toolbar-button" title="Open settings" on:click={() => (showPopup = true)}>
+<button type="button" class="btn btn-ghost btn-sm" title="Open settings" on:click={() => (showPopup = true)}>
 	<Gear size="16" weight="bold" />
 	<span>Settings</span>
 </button>
@@ -80,107 +76,100 @@
 />
 
 <Popup show={showPopup} fullscreen onClose={() => (showPopup = false)}>
-	<button class="mr-2 my-1 float-right text-xl dark:text-neutral-300" on:click={() => (showPopup = false)}>✕</button>
-	<h2 class="m-2 font-semibold text-xl dark:text-neutral-300">Settings</h2>
+	<header class="flex items-center border-b border-base-300 pb-4">
+		<div>
+			<p class="text-xs font-semibold tracking-widest text-base-content/50">OPENDECK</p>
+			<h2 class="text-2xl font-semibold">Settings</h2>
+		</div>
+		<button type="button" class="btn btn-circle btn-ghost ml-auto" aria-label="Close settings" on:click={() => (showPopup = false)}>✕</button>
+	</header>
+
 	{#if $settings}
-		<div class="flex flex-row items-center m-2 space-x-2">
-			<span class="dark:text-neutral-400"> Language: </span>
-			<div class="select-wrapper">
-				<select bind:value={$settings.language} class="w-32">
-					<option value="en">English</option>
-					<option value="es">Español</option>
-					<option value="zh_CN">中文</option>
-					<option value="fr">Français</option>
-					<option value="de">Deutsch</option>
-					<option value="ja">日本語</option>
-					<option value="ko">韓国語</option>
-				</select>
-			</div>
-			<Tooltip>
-				{PRODUCT_NAME} itself is not yet translated. Changing this setting will translate the text from installed plugins into your language for those that support it.
-			</Tooltip>
-		</div>
+		<div class="mt-5 grid gap-5 xl:grid-cols-2">
+			<section class="card border border-base-300 bg-base-200">
+				<div class="card-body gap-4">
+					<h3 class="card-title text-base">Appearance &amp; device</h3>
+					<label class="form-control grid grid-cols-[minmax(10rem,1fr)_auto] items-center gap-4">
+						<span class="label-text">Language</span>
+						<select bind:value={$settings.language} class="select select-sm w-40">
+							<option value="en">English</option>
+							<option value="es">Español</option>
+							<option value="zh_CN">中文</option>
+							<option value="fr">Français</option>
+							<option value="de">Deutsch</option>
+							<option value="ja">日本語</option>
+							<option value="ko">韓国語</option>
+						</select>
+					</label>
+					<p class="-mt-2 text-xs text-base-content/55">
+						{PRODUCT_NAME} itself is not translated; this controls supported plugin text.
+					</p>
+					<label class="form-control grid grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)] items-center gap-4">
+						<span class="label-text">Device brightness</span>
+						<input type="range" min="0" max="100" bind:value={$settings.brightness} class="range range-primary range-sm" />
+					</label>
+					<label class="form-control grid grid-cols-[1fr_auto] items-center gap-4">
+						<span class="label-text">Dark theme</span>
+						<input type="checkbox" bind:checked={$settings.darktheme} class="toggle toggle-primary" />
+					</label>
+				</div>
+			</section>
 
-		<div class="flex flex-row items-center m-2 space-x-2">
-			<span class="dark:text-neutral-400"> Device brightness: </span>
-			<input type="range" min="0" max="100" bind:value={$settings.brightness} />
-		</div>
+			<section class="card border border-base-300 bg-base-200">
+				<div class="card-body gap-4">
+					<h3 class="card-title text-base">Startup &amp; privacy</h3>
+					<label class="form-control grid grid-cols-[1fr_auto] items-center gap-4">
+						<span class="label-text">Run in background</span>
+						<input type="checkbox" bind:checked={$settings.background} class="toggle toggle-primary" />
+					</label>
+					<label class="form-control grid grid-cols-[1fr_auto] items-center gap-4">
+						<span class="label-text">Start at login</span>
+						<input type="checkbox" bind:checked={$settings.autolaunch} class="toggle toggle-primary" />
+					</label>
+					<label class="form-control grid grid-cols-[1fr_auto] items-center gap-4">
+						<span class="label-text">Check for updates</span>
+						<input type="checkbox" bind:checked={$settings.updatecheck} class="toggle toggle-primary" />
+					</label>
+					<label class="form-control grid grid-cols-[1fr_auto] items-center gap-4">
+						<span class="label-text">Contribute statistics</span>
+						<input type="checkbox" bind:checked={$settings.statistics} class="toggle toggle-primary" />
+					</label>
+				</div>
+			</section>
 
-		<div class="flex flex-row items-center m-2 space-x-2">
-			<span class="dark:text-neutral-400"> Enable dark theme: </span>
-			<input type="checkbox" bind:checked={$settings.darktheme} />
-		</div>
-
-		<div class="flex flex-row items-center m-2 space-x-2">
-			<span class="dark:text-neutral-400"> Run in background: </span>
-			<input type="checkbox" bind:checked={$settings.background} />
-			<Tooltip>If this option is enabled, {PRODUCT_NAME} will minimise to the tray and run in the background.</Tooltip>
-		</div>
-
-		<div class="flex flex-row items-center m-2 space-x-2">
-			<span class="dark:text-neutral-400"> Start at login: </span>
-			<input type="checkbox" bind:checked={$settings.autolaunch} />
-			<Tooltip>If this option is enabled, {PRODUCT_NAME} will automatically start at login.</Tooltip>
-		</div>
-
-		<div class="flex flex-row items-center m-2 space-x-2">
-			<span class="dark:text-neutral-400"> Check for updates: </span>
-			<input type="checkbox" bind:checked={$settings.updatecheck} />
-		</div>
-
-		<div class="flex flex-row items-center m-2 space-x-2">
-			<span class="dark:text-neutral-400"> Contribute statistics: </span>
-			<input type="checkbox" bind:checked={$settings.statistics} />
-		</div>
-
-		{#if !buildInfo?.includes("windows")}
-			<div class="flex flex-row items-center m-2 space-x-2">
-				<span class="dark:text-neutral-400"> Create separate Wine prefixes: </span>
-				<input type="checkbox" bind:checked={$settings.separatewine} />
-				<Tooltip>
-					If this option is enabled, {PRODUCT_NAME} will create a separate Wine prefix for each plugin that runs under Wine. Please note that each Wine prefix is quite large - around 300MB when initialised.
-				</Tooltip>
-			</div>
-		{/if}
-
-		<div class="flex flex-row items-center m-2 space-x-2">
-			<span class="dark:text-neutral-400"> Enable developer mode: </span>
-			<input type="checkbox" bind:checked={$settings.developer} />
-			<Tooltip>
-				This option enables features that make plugin development and debugging easier. Additionally, this option exposes all file paths on your device on the local webserver to allow symbolic linking
-				of plugins, so you should disable it if it is not in use.
-			</Tooltip>
-		</div>
-
-		<div class="flex flex-row items-center m-2 space-x-2">
-			<span class="dark:text-neutral-400"> Disable device discovery: </span>
-			<input type="checkbox" bind:checked={$settings.disabledevices} />
-			<Tooltip>This option disables discovery of devices so that they can be managed by other software.</Tooltip>
+			<section class="card border border-base-300 bg-base-200 xl:col-span-2">
+				<div class="card-body gap-4">
+					<h3 class="card-title text-base">Advanced</h3>
+					{#if !buildInfo?.includes("windows")}
+						<label class="form-control grid grid-cols-[1fr_auto_auto] items-center gap-4">
+							<span class="label-text">Create separate Wine prefixes</span>
+							<Tooltip>Each plugin receives a separate Wine prefix, which can use around 300 MB when initialized.</Tooltip>
+							<input type="checkbox" bind:checked={$settings.separatewine} class="toggle toggle-primary" />
+						</label>
+					{/if}
+					<label class="form-control grid grid-cols-[1fr_auto_auto] items-center gap-4">
+						<span class="label-text">Developer mode</span>
+						<Tooltip>Enables plugin development tools and exposes local file paths through the local webserver.</Tooltip>
+						<input type="checkbox" bind:checked={$settings.developer} class="toggle toggle-primary" />
+					</label>
+					<label class="form-control grid grid-cols-[1fr_auto_auto] items-center gap-4">
+						<span class="label-text">Disable device discovery</span>
+						<Tooltip>Allows connected devices to be managed by other software.</Tooltip>
+						<input type="checkbox" bind:checked={$settings.disabledevices} class="toggle toggle-primary" />
+					</label>
+				</div>
+			</section>
 		</div>
 	{/if}
 
-	<div class="ml-2">
-		<button
-			class="mt-2 mb-4 px-2 py-1 text-sm text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-700 border dark:border-neutral-600 rounded-lg"
-			on:click={() => invoke("open_config_directory")}
-		>
-			Open config directory
-		</button>
-		<button
-			class="mt-2 mb-4 px-2 py-1 text-sm text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-700 border dark:border-neutral-600 rounded-lg"
-			on:click={() => invoke("open_log_directory")}
-		>
-			Open log directory
-		</button>
-		<span class="text-xs dark:text-neutral-400">
-			{@html buildInfo}
-		</span>
-		<div class="absolute bottom-6 flex flex-row items-center text-sm dark:text-neutral-400">
-			<span class="mr-1">
-				Please leave a
-				<button on:click={() => invoke("open_url", { url: "https://github.com/mistweaverco/opendeck-ajazz" })} class="underline">star on GitHub</button>
-			</span>
-			<Star weight="fill" fill="yellow" />
+	<footer class="mt-5 flex flex-wrap items-center gap-2 border-t border-base-300 pt-4">
+		<button type="button" class="btn btn-sm" on:click={() => invoke("open_config_directory")}>Open config directory</button>
+		<button type="button" class="btn btn-sm" on:click={() => invoke("open_log_directory")}>Open log directory</button>
+		<span class="ml-2 text-xs text-base-content/50">{@html buildInfo}</span>
+		<div class="ml-auto flex items-center gap-1 text-sm text-base-content/60">
+			<span>Please leave a</span>
+			<button type="button" on:click={() => invoke("open_url", { url: "https://github.com/mistweaverco/opendeck-ajazz" })} class="link link-primary">star on GitHub</button>
+			<Star weight="fill" class="text-warning" />
 		</div>
-	</div>
+	</footer>
 </Popup>

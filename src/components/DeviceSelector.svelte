@@ -119,13 +119,11 @@
 </script>
 
 {#if Object.keys(devices).length > 0}
-	<div class="select-wrapper">
-		<select bind:value class="w-full">
-			<option value="" disabled selected>Choose a device...</option>
+	<select bind:value class="select select-sm w-full" aria-label="Device">
+		<option value="" disabled selected>Choose a device...</option>
 
-			{#each Object.entries(devices).sort() as [id, device]}
-				<option value={id}>{device.name}</option>
-			{/each}
-		</select>
-	</div>
+		{#each Object.entries(devices).sort() as [id, device]}
+			<option value={id}>{device.name}</option>
+		{/each}
+	</select>
 {/if}

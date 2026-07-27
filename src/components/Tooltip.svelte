@@ -1,15 +1,14 @@
 <script>
 	import Question from "phosphor-svelte/lib/Question";
-
-	let show = false;
 </script>
 
-<!-- svelte-ignore a11y-no-static-element-interactions -->
-<div class="inline-block cursor-help" on:mouseenter={() => (show = true)} on:mouseleave={() => (show = false)}>
-	<Question size="24" color="#77767B" />
-	{#if show}
-		<div class="absolute mt-2 p-2 w-96 text-xs dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-700 border-2 dark:border-neutral-600 rounded-lg">
+<div class="tooltip tooltip-right z-50" data-tip="More information">
+	<div class="dropdown dropdown-hover dropdown-end">
+		<button type="button" tabindex="0" class="btn btn-circle btn-ghost btn-xs text-base-content/55" aria-label="More information">
+			<Question size="18" />
+		</button>
+		<div role="tooltip" class="dropdown-content z-50 mt-1 w-80 rounded-box border border-base-300 bg-base-100 p-3 text-left text-xs font-normal text-base-content shadow-xl">
 			<slot />
 		</div>
-	{/if}
+	</div>
 </div>

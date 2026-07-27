@@ -48,28 +48,30 @@
 	}}
 />
 
-<div class="px-6 pt-6 pb-4 dark:text-neutral-300">
-	<button class="float-right text-xl" on:click={() => ($inspectedParentAction = null)}>✕</button>
-	<h1 class="font-semibold text-2xl">{parentUuid == "opendeck.toggleaction" ? "Toggle Action" : "Multi Action"}</h1>
-</div>
+<header class="flex items-center border-b border-base-300 px-6 py-4">
+	<div>
+		<p class="text-xs font-semibold tracking-widest text-base-content/50">ACTION FLOW</p>
+		<h1 class="text-2xl font-semibold">{parentUuid == "opendeck.toggleaction" ? "Toggle Action" : "Multi Action"}</h1>
+	</div>
+	<button type="button" class="btn btn-circle btn-ghost ml-auto" aria-label="Close action flow" on:click={() => ($inspectedParentAction = null)}>✕</button>
+</header>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
-<div class="flex flex-col h-80 overflow-scroll" on:click={() => inspectedInstance.set(null)} on:keyup={() => inspectedInstance.set(null)}>
+<div class="flex h-80 flex-col gap-2 overflow-auto p-4" on:click={() => inspectedInstance.set(null)} on:keyup={() => inspectedInstance.set(null)}>
 	{#each children as instance, index}
-		<div class="flex flex-row items-center mx-4 my-1 bg-neutral-100 dark:bg-neutral-800 rounded-md">
+		<div class="card card-side flex-row items-center border border-base-300 bg-base-100 px-3 shadow-sm">
 			<Key inslot={instance} context={null} active={false} scale={3 / 4} />
-			<p class="ml-4 text-xl dark:text-neutral-400">{instance.action.name}</p>
-			<button class="ml-auto mr-10" on:click={() => removeInstance(index)}>
-				<Trash size="32" color={document.documentElement.classList.contains("dark") ? "#C0BFBC" : "#77767B"} />
+			<p class="ml-4 text-lg font-medium">{instance.action.name}</p>
+			<button type="button" class="btn btn-circle btn-ghost btn-sm ml-auto text-error" aria-label="Remove action" on:click={() => removeInstance(index)}>
+				<Trash size="20" />
 			</button>
 		</div>
 	{/each}
-	<div
-		class="flex flex-row items-center mx-4 mt-1 mb-4 p-3 bg-neutral-100 dark:bg-neutral-800 border-2 border-dashed dark:border-neutral-700 rounded-md"
-		on:dragover={handleDragOver}
-		on:drop={handleDrop}
-	>
-		<img src="/cube.png" class="m-2 w-24 rounded-xl" alt="Add new action" />
-		<p class="ml-4 text-xl text-neutral-500">Drop actions here</p>
+	<div class="card flex-row items-center border-2 border-dashed border-base-300 bg-base-100 p-3" on:dragover={handleDragOver} on:drop={handleDrop}>
+		<img src="/cube.png" class="m-2 w-20 rounded-box" alt="" />
+		<div class="ml-4">
+			<p class="font-semibold">Drop actions here</p>
+			<p class="text-sm text-base-content/55">Drag an action from the library to add it to this flow.</p>
+		</div>
 	</div>
 </div>

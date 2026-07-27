@@ -31,7 +31,7 @@
 		italic = instance.states[state].style.includes("Italic");
 	}
 	$: update(instance);
-	$: invoke("set_state", { instance, state });
+	$: void invoke("set_state", { instance, state });
 </script>
 
 <svelte:window
@@ -40,30 +40,31 @@
 	}}
 />
 
-<div use:portalToPreviewDock class="absolute inset-0 z-[120]">
-	<button type="button" class="absolute inset-0 cursor-default bg-black/60 backdrop-blur-sm" aria-label="Close key editor" on:click={() => (showEditor = false)}></button>
+<div use:portalToPreviewDock class="modal modal-open absolute inset-0 z-[120]">
+	<button type="button" class="modal-backdrop bg-black/60 backdrop-blur-sm" aria-label="Close key editor" on:click={() => (showEditor = false)}>Close</button>
 
-	<div
-		class="absolute inset-4 overflow-y-auto rounded-xl border border-neutral-300 bg-neutral-100 p-5 text-neutral-700 shadow-2xl dark:border-[#484848] dark:bg-[#252525] dark:text-neutral-300"
-		role="dialog"
-		aria-modal="true"
-		aria-label="Edit key appearance"
-	>
-		<div class="mb-5 flex flex-row items-center border-b border-neutral-200 pb-4 dark:border-[#424242]">
-			<h2 class="mr-5 text-lg font-semibold text-neutral-900 dark:text-neutral-100">Edit key appearance</h2>
-			<div class="select-wrapper ml-auto w-48">
-				<select class="w-full" bind:value={state}>
+	<div class="modal-box z-10 h-[calc(100%-2rem)] w-[calc(100%-2rem)] max-w-none overflow-y-auto border border-base-300 p-5" role="dialog" aria-modal="true" aria-label="Edit key appearance">
+		<header class="mb-5 flex items-center border-b border-base-300 pb-4">
+			<div>
+				<p class="text-xs font-semibold tracking-widest text-base-content/50">KEY APPEARANCE</p>
+				<h2 class="text-xl font-semibold">Customize state</h2>
+			</div>
+			<label class="form-control ml-auto w-48">
+				<span class="sr-only">State</span>
+				<select class="select select-sm w-full" bind:value={state}>
 					{#each instance.states as _, i}
 						<option value={i}>State {i + 1}</option>
 					{/each}
 				</select>
-			</div>
-			<button class="ml-3 rounded-lg p-2 text-xl leading-none hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-[#383838]" on:click={() => (showEditor = false)}>✕</button>
-		</div>
+			</label>
+			<button type="button" class="btn btn-circle btn-ghost ml-3" aria-label="Close key editor" on:click={() => (showEditor = false)}>✕</button>
+		</header>
 
-		<div class="flex flex-row">
-			<div class="flex flex-col justify-center items-center">
+		<div class="grid gap-6 md:grid-cols-[10rem_minmax(0,1fr)]">
+			<div class="card items-center border border-base-300 bg-base-200 p-4">
 				<button
+					type="button"
+					class="btn h-auto border-0 bg-transparent p-0 shadow-none"
 					on:click={() => fileInput.click()}
 					on:contextmenu={(event) => {
 						event.preventDefault();
@@ -72,13 +73,11 @@
 				>
 					<img
 						src={getImage(instance.states[state].image, instance.action.states[state]?.image ?? instance.action.icon)}
-						class="my-auto p-1 w-32 h-min aspect-square rounded-xl cursor-pointer"
-						alt="State {state}"
+						class="aspect-square w-32 rounded-box object-cover"
+						alt="State {state + 1} preview"
 					/>
 				</button>
-				<button on:click={() => colourInput.click()} class="mt-0.5 px-0.5 text-sm text-neutral-700 dark:text-neutral-400 bg-neutral-200 dark:bg-neutral-600 rounded-md outline-hidden">
-					Solid colour
-				</button>
+				<button type="button" on:click={() => colourInput.click()} class="btn btn-sm mt-3 w-full">Solid colour</button>
 			</div>
 			<input
 				bind:this={fileInput}
@@ -118,30 +117,26 @@
 				}}
 			/>
 
-			<div class="flex flex-col pl-2 pr-1 pt-4 pb-2 space-y-2">
-				<div class="flex flex-row space-x-2">
-					<span> Text </span>
-					<textarea bind:value={instance.states[state].text} rows="1" class="w-full px-1 dark:text-neutral-300 bg-neutral-200 dark:bg-neutral-600 rounded-md outline-hidden resize-none"></textarea>
-				</div>
-				<div class="flex flex-row items-center">
-					<span class="mr-2"> Colour </span>
-					<input type="color" bind:value={instance.states[state].colour} class="mr-2 px-0.5 bg-neutral-200 dark:bg-neutral-600 rounded-md outline-hidden" />
-					<span class="mr-2"> Show </span>
-					<input type="checkbox" bind:checked={instance.states[state].show} class="mr-4 mt-1 scale-125" />
-					<select bind:value={instance.states[state].alignment} class="px-1! py-0.5!">
+			<div class="grid content-start gap-4 sm:grid-cols-2">
+				<label class="form-control sm:col-span-2">
+					<span class="label-text mb-1">Text</span>
+					<textarea bind:value={instance.states[state].text} rows="2" class="textarea textarea-bordered w-full resize-none"></textarea>
+				</label>
+				<label class="form-control">
+					<span class="label-text mb-1">Text colour</span>
+					<input type="color" bind:value={instance.states[state].colour} class="input input-bordered h-10 w-full p-1" />
+				</label>
+				<label class="form-control">
+					<span class="label-text mb-1">Alignment</span>
+					<select bind:value={instance.states[state].alignment} class="select select-bordered select-sm w-full">
 						<option value="top">Top</option>
 						<option value="middle">Middle</option>
 						<option value="bottom">Bottom</option>
 					</select>
-				</div>
-				<div class="flex flex-row">
-					<span class="mr-2"> Font </span>
-					<input
-						list="families"
-						bind:value={instance.states[state].family}
-						placeholder="Font family"
-						class="w-full px-1 dark:text-neutral-300 bg-neutral-200 dark:bg-neutral-600 rounded-md outline-hidden"
-					/>
+				</label>
+				<label class="form-control sm:col-span-2">
+					<span class="label-text mb-1">Font family</span>
+					<input list="families" bind:value={instance.states[state].family} placeholder="Font family" class="input input-bordered input-sm w-full" />
 					<datalist id="families">
 						<option value="Liberation Sans">Liberation Sans</option>
 						<option value="Archivo Black">Archivo Black</option>
@@ -153,26 +148,40 @@
 						<option value="Open Sans">Open Sans</option>
 						<option value="Fira Sans">Fira Sans</option>
 					</datalist>
+				</label>
+				<div class="join">
+					<label class="btn btn-sm join-item">
+						<span class="font-bold">B</span>
+						<input
+							type="checkbox"
+							bind:checked={bold}
+							on:change={() => (instance.states[state].style = bold && italic ? "Bold Italic" : bold ? "Bold" : italic ? "Italic" : "Regular")}
+							class="checkbox checkbox-xs"
+						/>
+					</label>
+					<label class="btn btn-sm join-item">
+						<span class="italic">I</span>
+						<input
+							type="checkbox"
+							bind:checked={italic}
+							on:change={() => (instance.states[state].style = bold && italic ? "Bold Italic" : bold ? "Bold" : italic ? "Italic" : "Regular")}
+							class="checkbox checkbox-xs"
+						/>
+					</label>
+					<label class="btn btn-sm join-item">
+						<span class="underline">U</span>
+						<input type="checkbox" bind:checked={instance.states[state].underline} class="checkbox checkbox-xs" />
+					</label>
 				</div>
-				<div class="flex flex-row">
-					<span class="mr-3 font-bold"> B </span>
-					<input
-						type="checkbox"
-						bind:checked={bold}
-						on:change={() => (instance.states[state].style = bold && italic ? "Bold Italic" : bold ? "Bold" : italic ? "Italic" : "Regular")}
-						class="mr-4 mt-1 scale-125"
-					/>
-					<span class="mr-3 italic"> I </span>
-					<input
-						type="checkbox"
-						bind:checked={italic}
-						on:change={() => (instance.states[state].style = bold && italic ? "Bold Italic" : bold ? "Bold" : italic ? "Italic" : "Regular")}
-						class="mr-4 mt-1 scale-125"
-					/>
-					<span class="mr-3 underline"> U </span>
-					<input type="checkbox" bind:checked={instance.states[state].underline} class="mr-4 mt-1 scale-125" />
-					<span class="mr-2"> Size </span>
-					<input type="number" bind:value={instance.states[state].size} class="px-0.5 w-14 dark:text-neutral-300 bg-neutral-200 dark:bg-neutral-600 rounded-md outline-hidden" />
+				<div class="flex items-center justify-end gap-3">
+					<label class="label cursor-pointer gap-2">
+						<span class="label-text">Show text</span>
+						<input type="checkbox" bind:checked={instance.states[state].show} class="toggle toggle-primary toggle-sm" />
+					</label>
+					<label class="form-control w-20">
+						<span class="label-text mb-1">Size</span>
+						<input type="number" bind:value={instance.states[state].size} class="input input-bordered input-sm w-full" />
+					</label>
 				</div>
 			</div>
 		</div>

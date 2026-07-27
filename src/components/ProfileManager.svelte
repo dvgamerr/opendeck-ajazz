@@ -215,24 +215,22 @@
 	}
 </script>
 
-<div class="select-wrapper">
-	<select bind:value class="my-1 w-full">
-		{#each Object.entries(folders) as [id, profiles]}
-			{#if id && profiles.length}
-				<optgroup label={id}>
-					{#each profiles as profile}
-						<option value={profile}>{profile.split("/")[1]}</option>
-					{/each}
-				</optgroup>
-			{:else}
+<select bind:value class="select select-sm my-1 w-full" aria-label="Profile">
+	{#each Object.entries(folders) as [id, profiles]}
+		{#if id && profiles.length}
+			<optgroup label={id}>
 				{#each profiles as profile}
-					<option value={profile}>{profile}</option>
+					<option value={profile}>{profile.split("/")[1]}</option>
 				{/each}
-			{/if}
-		{/each}
-		<option value="opendeck_edit_profiles">Edit...</option>
-	</select>
-</div>
+			</optgroup>
+		{:else}
+			{#each profiles as profile}
+				<option value={profile}>{profile}</option>
+			{/each}
+		{/if}
+	{/each}
+	<option value="opendeck_edit_profiles">Edit...</option>
+</select>
 
 <svelte:window
 	on:keydown={(event) => {
@@ -244,18 +242,24 @@
 />
 
 <Popup show={showPopup}>
-	<button class="mr-1 float-right text-xl dark:text-neutral-300" on:click={() => (showPopup = false)}>✕</button>
-	<h2 class="text-xl font-semibold dark:text-neutral-300">{device.name}</h2>
+	<header class="mb-4 flex items-center">
+		<div>
+			<p class="text-xs font-semibold tracking-widest text-base-content/50">PROFILES</p>
+			<h2 class="text-xl font-semibold">{device.name}</h2>
+		</div>
+		<button type="button" class="btn btn-circle btn-ghost btn-sm ml-auto" aria-label="Close profile manager" on:click={() => (showPopup = false)}>✕</button>
+	</header>
 
-	<div class="flex flex-row mt-2 mb-1">
+	<div class="join mb-4 flex w-full">
 		<input
 			bind:this={nameInput}
 			pattern="[a-zA-Z0-9_ ]+(\/[a-zA-Z0-9_ ]+)?"
-			class="grow p-2 dark:text-neutral-300 invalid:text-red-400 dark:bg-neutral-700 rounded-l-md outline-hidden"
+			class="input input-bordered join-item grow invalid:input-error"
 			placeholder="Profile ID (e.g. &quot;folder/profile&quot;)"
 		/>
 
 		<button
+			type="button"
 			on:click={async () => {
 				if (!nameInput.checkValidity() || !nameInput.value) return;
 				await setProfile(nameInput.value);
@@ -263,28 +267,30 @@
 				nameInput.value = "";
 				showPopup = false;
 			}}
-			class="px-4 dark:text-neutral-300 bg-neutral-200 dark:bg-neutral-900 rounded-r-md"
+			class="btn btn-primary join-item"
 		>
 			Create
 		</button>
 
-		<button class="ml-2 px-4 flex items-center dark:text-neutral-300 bg-neutral-200 dark:bg-neutral-900 rounded-md outline-hidden" on:click={() => (showApplicationManager = true)}>
+		<button type="button" class="btn join-item" title="Manage application profiles" on:click={() => (showApplicationManager = true)}>
 			<Browsers size={24} />
 		</button>
 	</div>
 
-	<div class="divide-y">
+	<div class="divide-y divide-base-300 rounded-box border border-base-300 bg-base-200 px-3">
 		{#each Object.entries(folders) as [id, profiles]}
 			{#if id && profiles.length}
-				<h4 class="py-2 font-bold text-lg dark:text-neutral-300">{id}</h4>
+				<h4 class="py-2 text-sm font-bold uppercase tracking-wide text-base-content/55">{id}</h4>
 			{/if}
 			{#each profiles as profile}
-				<div class="py-2" class:ml-6={id} class:pl-2={id}>
-					<input type="radio" bind:group={value} value={profile} />
-					<span class="dark:text-neutral-400"> {id ? profile.split("/")[1] : profile} </span>
+				<div class="flex items-center gap-3 py-2" class:ml-6={id} class:pl-2={id}>
+					<label class="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+						<input type="radio" bind:group={value} value={profile} class="radio radio-primary radio-sm" />
+						<span class="truncate">{id ? profile.split("/")[1] : profile}</span>
+					</label>
 					{#if profile != value}
-						<button on:click={() => deleteProfile(profile)} class="float-right">
-							<Trash size="20" color={document.documentElement.classList.contains("dark") ? "#C0BFBC" : "#77767B"} />
+						<button type="button" on:click={() => deleteProfile(profile)} class="btn btn-circle btn-ghost btn-xs ml-auto text-error" aria-label="Delete profile">
+							<Trash size="18" />
 						</button>
 					{/if}
 				</div>
@@ -294,80 +300,89 @@
 </Popup>
 
 <Popup show={showApplicationManager}>
-	<button class="mr-1 float-right text-xl dark:text-neutral-300" on:click={() => (showApplicationManager = false)}>✕</button>
-	<h2 class="text-xl font-semibold dark:text-neutral-300">{device.name}</h2>
-	<span class="text-sm dark:text-neutral-400">If your application isn't listed, try switching to it and back again.</span>
-	<span class="text-sm dark:text-neutral-400">
-		When a mapped application becomes inactive, the previous profile is restored. The 'default profile' is used when no previous profile is waiting to be restored.
-	</span>
+	<header class="mb-3 flex items-center">
+		<div>
+			<p class="text-xs font-semibold tracking-widest text-base-content/50">APPLICATION MAPPING</p>
+			<h2 class="text-xl font-semibold">{device.name}</h2>
+		</div>
+		<button type="button" class="btn btn-circle btn-ghost btn-sm ml-auto" aria-label="Close application mapping" on:click={() => (showApplicationManager = false)}>✕</button>
+	</header>
+	<div role="alert" class="alert mb-3 py-2 text-sm">
+		<span>If an application is missing, switch to it and back. The previous profile is restored when a mapped application becomes inactive.</span>
+	</div>
 	{#if applicationProfilesError}
-		<span class="block text-sm text-red-500">{applicationProfilesError}</span>
+		<div role="alert" class="alert alert-error mb-3 py-2 text-sm"><span>{applicationProfilesError}</span></div>
 	{/if}
 
-	<table class="w-full dark:text-neutral-300 divide-y">
-		<tbody>
-			{#each Object.entries(applicationProfiles).sort((a, b) => (a[0] == "opendeck_default" ? -1 : b[0] == "opendeck_default" ? 1 : a[0].localeCompare(b[0]))) as [appName, devices]}
-				{#if devices[device.id]}
-					<tr class="h-12">
-						<td>{appName == "opendeck_default" ? "Default profile" : appName}:</td>
-						<td class="select-wrapper">
-							<select bind:value={applicationProfiles[appName][device.id]} class="w-full">
-								{#each Object.entries(folders) as [id, profiles]}
-									{#if id && profiles.length}
-										<optgroup label={id}>
+	<div class="overflow-x-auto rounded-box border border-base-300">
+		<table class="table table-sm w-full">
+			<thead>
+				<tr><th>Application</th><th>Profile</th></tr>
+			</thead>
+			<tbody>
+				{#each Object.entries(applicationProfiles).sort((a, b) => (a[0] == "opendeck_default" ? -1 : b[0] == "opendeck_default" ? 1 : a[0].localeCompare(b[0]))) as [appName, devices]}
+					{#if devices[device.id]}
+						<tr>
+							<td>{appName == "opendeck_default" ? "Default profile" : appName}:</td>
+							<td>
+								<select bind:value={applicationProfiles[appName][device.id]} class="select select-sm w-full">
+									{#each Object.entries(folders) as [id, profiles]}
+										{#if id && profiles.length}
+											<optgroup label={id}>
+												{#each profiles as profile}
+													<option value={profile}>{profile.split("/")[1]}</option>
+												{/each}
+											</optgroup>
+										{:else}
 											{#each profiles as profile}
-												<option value={profile}>{profile.split("/")[1]}</option>
+												<option value={profile}>{profile}</option>
 											{/each}
-										</optgroup>
-									{:else}
-										{#each profiles as profile}
-											<option value={profile}>{profile}</option>
-										{/each}
-									{/if}
-								{/each}
-								<option disabled>──────────</option>
-								<option value={undefined}>Remove application</option>
-							</select>
-						</td>
-					</tr>
-				{/if}
-			{/each}
-			<tr class="h-12">
-				<td class="w-48 select-wrapper">
-					<select bind:value={applicationsAddAppName} class="w-full">
-						<option selected disabled value="opendeck_select_application">Select application...</option>
-						{#if !applicationProfiles["opendeck_default"] || !applicationProfiles["opendeck_default"][device.id]}
-							<option value="opendeck_default">Default profile</option>
-							{#if applications.filter((appName) => !applicationProfiles[appName] || !applicationProfiles[appName][device.id]).length > 0}
-								<option disabled>──────────</option>
-							{/if}
-						{/if}
-						{#each applications as appName}
-							{#if !applicationProfiles[appName] || !applicationProfiles[appName][device.id]}
-								<option value={appName}>{appName}</option>
-							{/if}
-						{/each}
-					</select>
-				</td>
-				<td class="w-96 select-wrapper">
-					<select bind:value={applicationsAddProfile} class="w-full">
-						<option selected disabled value="opendeck_select_profile">Select profile...</option>
-						{#each Object.entries(folders) as [id, profiles]}
-							{#if id && profiles.length}
-								<optgroup label={id}>
-									{#each profiles as profile}
-										<option value={profile}>{profile.split("/")[1]}</option>
+										{/if}
 									{/each}
-								</optgroup>
-							{:else}
-								{#each profiles as profile}
-									<option value={profile}>{profile}</option>
-								{/each}
+									<option disabled>──────────</option>
+									<option value={undefined}>Remove application</option>
+								</select>
+							</td>
+						</tr>
+					{/if}
+				{/each}
+				<tr class="h-12">
+					<td class="w-48">
+						<select bind:value={applicationsAddAppName} class="select select-sm w-full">
+							<option selected disabled value="opendeck_select_application">Select application...</option>
+							{#if !applicationProfiles["opendeck_default"] || !applicationProfiles["opendeck_default"][device.id]}
+								<option value="opendeck_default">Default profile</option>
+								{#if applications.filter((appName) => !applicationProfiles[appName] || !applicationProfiles[appName][device.id]).length > 0}
+									<option disabled>──────────</option>
+								{/if}
 							{/if}
-						{/each}
-					</select>
-				</td>
-			</tr>
-		</tbody>
-	</table>
+							{#each applications as appName}
+								{#if !applicationProfiles[appName] || !applicationProfiles[appName][device.id]}
+									<option value={appName}>{appName}</option>
+								{/if}
+							{/each}
+						</select>
+					</td>
+					<td class="w-96">
+						<select bind:value={applicationsAddProfile} class="select select-sm w-full">
+							<option selected disabled value="opendeck_select_profile">Select profile...</option>
+							{#each Object.entries(folders) as [id, profiles]}
+								{#if id && profiles.length}
+									<optgroup label={id}>
+										{#each profiles as profile}
+											<option value={profile}>{profile.split("/")[1]}</option>
+										{/each}
+									</optgroup>
+								{:else}
+									{#each profiles as profile}
+										<option value={profile}>{profile}</option>
+									{/each}
+								{/if}
+							{/each}
+						</select>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
 </Popup>

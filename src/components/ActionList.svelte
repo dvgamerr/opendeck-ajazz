@@ -48,60 +48,60 @@
 	}
 </script>
 
-<div class="action-library">
-	<div class="action-library-header">
-		<div class="action-search">
-			<MagnifyingGlass size="15" class="ml-3 shrink-0" color="currentColor" />
-			<input
-				bind:value={query}
-				class="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-sm text-neutral-700 outline-hidden dark:text-neutral-200"
-				placeholder="Search actions"
-				type="search"
-				spellcheck="false"
-			/>
-		</div>
-		<div class="action-tabs" aria-label="Action controller">
-			<button class:action-tab-active={controller == "Keypad"} class="action-tab" on:click={() => (controller = "Keypad")}>
+<div class="flex min-h-0 flex-1 flex-col">
+	<div class="shrink-0 space-y-3 border-b border-base-300 p-4">
+		<label class="input input-sm w-full bg-base-200 focus-within:input-primary">
+			<MagnifyingGlass size="15" class="shrink-0 opacity-60" color="currentColor" />
+			<input bind:value={query} class="grow" placeholder="Search actions" type="search" spellcheck="false" />
+		</label>
+		<div class="tabs tabs-box grid grid-cols-2" role="tablist" aria-label="Action controller">
+			<button type="button" role="tab" class="tab gap-2" class:tab-active={controller == "Keypad"} on:click={() => (controller = "Keypad")}>
 				<span class="h-3.5 w-3.5 rounded-[4px] border-2 border-current"></span>
 				Keys
 			</button>
-			<button class:action-tab-active={controller == "Encoder"} class="action-tab" on:click={() => (controller = "Encoder")}>
+			<button type="button" role="tab" class="tab gap-2" class:tab-active={controller == "Encoder"} on:click={() => (controller = "Encoder")}>
 				<span class="h-3.5 w-3.5 rounded-full border-2 border-current"></span>
 				Dials
 			</button>
 		</div>
 	</div>
 
-	<div class="action-list-scroll">
+	<ul class="menu min-h-0 flex-1 flex-nowrap overflow-y-auto px-3 py-2 select-none">
 		{#each filteredCategories as [name, { icon, actions }]}
-			<details open class="action-category">
-				<summary>
-					{#if icon || (actions[0] && plugins.find((x) => x.id == actions[0].plugin) && categories[name].actions.every((x) => x.plugin == actions[0].plugin))}
-						<img
-							src={icon ? (!icon.startsWith("opendeck/") ? getWebserverUrl(icon) : icon.replace("opendeck", "")) : getWebserverUrl(plugins.find((x) => x.id == actions[0].plugin).icon)}
-							alt=""
-							class="h-5 w-5 rounded"
-						/>
-					{/if}
-					<span class="min-w-0 flex-1 truncate">{name}</span>
-				</summary>
-				{#each actions as action}
-					<div
-						class="action-row"
-						role="group"
-						draggable="true"
-						title={$localisations?.[action.plugin]?.[action.uuid]?.Tooltip ?? action.tooltip}
-						on:dragstart={(event) => handleActionDragStart(event, action)}
-					>
-						<img
-							src={!action.icon.startsWith("opendeck/") ? getWebserverUrl(action.icon) : action.icon.replace("opendeck", "")}
-							alt={$localisations?.[action.plugin]?.[action.uuid]?.Tooltip ?? action.tooltip}
-							class="h-8 w-8 shrink-0 rounded-md object-cover pointer-events-none"
-						/>
-						<span class="min-w-0 truncate">{$localisations?.[action.plugin]?.[action.uuid]?.Name ?? action.name}</span>
-					</div>
-				{/each}
-			</details>
+			<li>
+				<details open>
+					<summary class="text-xs font-semibold">
+						{#if icon || (actions[0] && plugins.find((x) => x.id == actions[0].plugin) && categories[name].actions.every((x) => x.plugin == actions[0].plugin))}
+							<img
+								src={icon ? (!icon.startsWith("opendeck/") ? getWebserverUrl(icon) : icon.replace("opendeck", "")) : getWebserverUrl(plugins.find((x) => x.id == actions[0].plugin).icon)}
+								alt=""
+								class="size-5 rounded"
+							/>
+						{/if}
+						<span class="min-w-0 flex-1 truncate">{name}</span>
+					</summary>
+					<ul>
+						{#each actions as action}
+							<li>
+								<button
+									type="button"
+									class="cursor-grab gap-3 py-1.5 active:cursor-grabbing"
+									draggable="true"
+									title={$localisations?.[action.plugin]?.[action.uuid]?.Tooltip ?? action.tooltip}
+									on:dragstart={(event) => handleActionDragStart(event, action)}
+								>
+									<img
+										src={!action.icon.startsWith("opendeck/") ? getWebserverUrl(action.icon) : action.icon.replace("opendeck", "")}
+										alt=""
+										class="pointer-events-none size-8 shrink-0 rounded-field object-cover"
+									/>
+									<span class="min-w-0 truncate">{$localisations?.[action.plugin]?.[action.uuid]?.Name ?? action.name}</span>
+								</button>
+							</li>
+						{/each}
+					</ul>
+				</details>
+			</li>
 		{/each}
-	</div>
+	</ul>
 </div>

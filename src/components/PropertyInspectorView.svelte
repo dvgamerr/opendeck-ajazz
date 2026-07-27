@@ -7,6 +7,7 @@
 	import { inspectedInstance } from "$lib/propertyInspector";
 
 	import { invoke } from "@tauri-apps/api/core";
+	import { onMount } from "svelte";
 
 	let iframes: { [context: string]: HTMLIFrameElement } = {};
 	let iframeContainer: HTMLDivElement;
@@ -83,9 +84,21 @@
 		}
 	};
 
-	window.addEventListener("message", ({ data }) => {
+	function combineUint8Arrays(arrays: Uint8Array[]): Uint8Array {
+		const totalLength = arrays.reduce((sum, item) => sum + item.length, 0);
+		const mergedArray = new Uint8Array(totalLength);
+		let offset = 0;
+		for (const item of arrays) {
+			mergedArray.set(item, offset);
+			offset += item.length;
+		}
+		return mergedArray;
+	}
+
+	function handleMessage({ data }: MessageEvent) {
 		if (data.event == "windowOpened") {
 			const iframe = iframes[data.payload];
+			if (!iframe) return;
 			iframe.style.position = "absolute";
 			iframe.style.left = "36px";
 			iframe.style.top = "36px";
@@ -107,19 +120,6 @@
 		} else if (data.event == "openUrl") {
 			invoke("open_url", { url: data.payload });
 		} else if (data.event == "fetch") {
-			function combineUint8Arrays(arrays: Uint8Array[]): Uint8Array {
-				const totalLength = arrays.reduce((acc, curr) => acc + curr.length, 0);
-				let mergedArray = new Uint8Array(totalLength);
-				let offset = 0;
-
-				arrays.forEach((item) => {
-					mergedArray.set(item, offset);
-					offset += item.length;
-				});
-
-				return mergedArray;
-			}
-
 			const fetchCORS = (window as typeof window & { fetchCORS: (...args: any[]) => Promise<Response> }).fetchCORS;
 			fetchCORS(...data.payload.args)
 				.then(async (response: Response) => {
@@ -155,6 +155,11 @@
 					iframes[data.payload.context]?.contentWindow?.postMessage({ event: "fetchError", payload: { id: data.payload.id, error } }, getWebserverUrl());
 				});
 		}
+	}
+
+	onMount(() => {
+		window.addEventListener("message", handleMessage);
+		return () => window.removeEventListener("message", handleMessage);
 	});
 
 	const nonNull = <T,>(o: T | null): o is T => o != null;
@@ -172,15 +177,21 @@
 	}}
 />
 
-<div class="h-full min-h-0 w-full overflow-auto bg-white dark:bg-neutral-900 border-t dark:border-neutral-700" bind:this={iframeContainer}>
-	<button bind:this={iframeClosePopup} on:click={() => closePopup(iframePopupsOpen[iframePopupsOpen.length - 1])} class="absolute top-2 right-2 text-2xl dark:text-neutral-300 font-bold hidden">
+<div class="h-full min-h-0 w-full overflow-auto bg-base-100" bind:this={iframeContainer}>
+	<button
+		type="button"
+		bind:this={iframeClosePopup}
+		on:click={() => closePopup(iframePopupsOpen[iframePopupsOpen.length - 1])}
+		class="btn btn-circle btn-ghost btn-sm absolute top-2 right-2 hidden"
+		aria-label="Close property inspector popup"
+	>
 		✕
 	</button>
 	{#each instances as instance (instance.context)}
 		{#if instance.action.property_inspector}
 			<iframe
 				title="Property inspector"
-				class="w-full h-full hidden"
+				class="hidden h-full w-full"
 				class:block!={$inspectedInstance == instance.context}
 				src={getWebserverUrl(instance.action.property_inspector + "|opendeck_property_inspector")}
 				name={instance.context}

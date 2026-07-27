@@ -8,21 +8,23 @@
 	export let secondaryAction: (() => void) | undefined = undefined;
 </script>
 
-<div class="flex flex-row items-center m-2 p-2 bg-neutral-200 dark:bg-neutral-700 rounded-md" class:hidden>
-	<img src={icon} class="w-24 h-24 rounded-md" class:opacity-75={disconnected} alt={name} loading="lazy" />
-	<div class="ml-4 mr-2 dark:text-neutral-300 [overflow-wrap:anywhere]" class:opacity-75={disconnected}>
-		<p class="font-semibold">{name}</p>
-		{subtitle}
+<article class="card card-side m-2 min-w-0 border border-base-300 bg-base-200 shadow-sm" class:hidden>
+	<figure class="shrink-0 p-2 pr-0">
+		<img src={icon} class="size-20 rounded-box object-cover" class:opacity-50={disconnected} alt={name} loading="lazy" />
+	</figure>
+	<div class="card-body min-w-0 gap-1 p-3" class:opacity-50={disconnected}>
+		<h3 class="truncate font-semibold">{name}</h3>
+		<p class="truncate text-xs text-base-content/60">{subtitle}</p>
 	</div>
 
-	<div class="flex flex-col ml-auto mr-4">
+	<div class="flex shrink-0 flex-col justify-center gap-1 pr-3">
 		{#if secondaryAction}
-			<button on:click={secondaryAction}>
+			<button type="button" class="btn btn-circle btn-ghost btn-sm" aria-label="Plugin settings" on:click={secondaryAction}>
 				<slot name="secondary" />
 			</button>
 		{/if}
-		<button on:click={action}>
+		<button type="button" class="btn btn-circle btn-ghost btn-sm" aria-label="Plugin action" on:click={action}>
 			<slot />
 		</button>
 	</div>
-</div>
+</article>

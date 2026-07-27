@@ -177,10 +177,9 @@
 
 <canvas
 	bind:this={canvas}
-	class={`key-canvas key-canvas--${resolvedAppearance} relative block outline-none outline-offset-2 outline-indigo-500`}
+	class={`key-canvas key-canvas--${resolvedAppearance} relative block outline-none outline-offset-2 outline-primary`}
 	class:-m-2={resolvedAppearance != "touch"}
 	class:border-2={resolvedAppearance != "touch"}
-	class:dark:border-neutral-700={resolvedAppearance != "touch"}
 	class:rounded-md={resolvedAppearance == "key"}
 	class:outline-solid={slot && $inspectedInstance == slot.context}
 	class:-m-[2.06rem]={resolvedAppearance != "touch" && size == 192}
@@ -198,31 +197,20 @@
 ></canvas>
 
 {#if $openContextMenu && $openContextMenu?.context == context}
-	<div
-		use:portalToBody
-		class="fixed z-[1000] w-32 divide-y rounded-lg border-2 bg-neutral-100 text-sm font-semibold shadow-xl dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-300"
-		style={`left: ${$openContextMenu.x}px; top: ${$openContextMenu.y}px;`}
-	>
+	<ul use:portalToBody class="menu fixed z-[1000] w-36 rounded-box border border-base-300 bg-base-100 p-1 text-sm shadow-xl" style={`left: ${$openContextMenu.x}px; top: ${$openContextMenu.y}px;`}>
 		{#if !slot}
-			<button class="flex flex-row p-2 w-full cursor-pointer items-center" on:click={paste}>
-				<Clipboard size="18" color={document.documentElement.classList.contains("dark") ? "#DEDDDA" : "#77767B"} />
-				<span class="ml-2"> Paste </span>
-			</button>
+			<li>
+				<button type="button" on:click={paste}>
+					<Clipboard size="18" />
+					Paste
+				</button>
+			</li>
 		{:else}
-			<button class="flex flex-row p-2 w-full cursor-pointer items-center" on:click={edit}>
-				<Pencil size="18" color={document.documentElement.classList.contains("dark") ? "#DEDDDA" : "#77767B"} />
-				<span class="ml-2"> Edit </span>
-			</button>
-			<button class="flex flex-row p-2 w-full cursor-pointer items-center" on:click={() => copiedContext.set(context)}>
-				<Copy size="18" color={document.documentElement.classList.contains("dark") ? "#DEDDDA" : "#77767B"} />
-				<span class="ml-2"> Copy </span>
-			</button>
-			<button class="flex flex-row p-2 w-full cursor-pointer items-center" on:click={clear}>
-				<Trash size="18" color="#F66151" />
-				<span class="ml-2"> Delete </span>
-			</button>
+			<li><button type="button" on:click={edit}><Pencil size="18" />Edit</button></li>
+			<li><button type="button" on:click={() => copiedContext.set(context)}><Copy size="18" />Copy</button></li>
+			<li><button type="button" class="text-error" on:click={clear}><Trash size="18" />Delete</button></li>
 		{/if}
-	</div>
+	</ul>
 {/if}
 
 {#if slot && showEditor}

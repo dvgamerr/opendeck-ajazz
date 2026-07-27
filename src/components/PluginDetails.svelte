@@ -26,7 +26,7 @@
 		const renderer = new marked.Renderer();
 		renderer.link = function (token) {
 			const rendered = marked.Renderer.prototype.link.call(this, token);
-			return rendered.replace("<a", `<a target="_blank" onclick="window.open('${token.href}')" `);
+			return rendered.replace("<a", '<a target="_blank" rel="noreferrer"');
 		};
 		marked.use({ renderer });
 		const urls = [
@@ -39,10 +39,10 @@
 			const response = await fetch(url);
 			if (response.ok) {
 				marked.use(baseUrl(url));
-				return await marked.parse(DOMPurify.sanitize(await response.text()).replace(/<a/g, '<a target="_blank" '));
+				return DOMPurify.sanitize(await marked.parse(await response.text()), { ADD_ATTR: ["target"] });
 			}
 		}
-		return await marked.parse("**Plugin README file not found**\n\n[View plugin on GitHub](https://github.com/" + repo + ")");
+		return DOMPurify.sanitize(await marked.parse("**Plugin README file not found**\n\n[View plugin on GitHub](https://github.com/" + repo + ")"), { ADD_ATTR: ["target"] });
 	}
 
 	onMount(async () => {
@@ -61,15 +61,25 @@
 </script>
 
 <Popup show fullscreen onClose={close}>
-	<button class="mr-2 my-1 float-right text-xl dark:text-neutral-300" on:click={close}>✕</button>
-	<div class="flex flex-row items-start">
-		<img src={"https://openactionapi.github.io/plugins/icons/" + id + ".png"} alt={details.name} class="size-48 rounded-2xl" />
-		<div class="flex flex-col justify-center h-48 ml-8">
-			<div class="text-3xl dark:text-neutral-200">{details.name}</div>
-			<div class="flex items-center mt-2 text-lg text-neutral-600 dark:text-neutral-400">
-				<span class="mr-2">by</span>
-				<img src={"https://avatars.githubusercontent.com/" + details.repository.split("/")[3]} alt="Author avatar" class="size-7 mr-1.5 rounded-full" />
-				<a target="_blank" href={"https://github.com/" + details.repository.split("/")[3]} on:click={() => window.open("https://github.com/" + details.repository.split("/")[3])} class="underline">
+	<header class="flex justify-end">
+		<button type="button" class="btn btn-circle btn-ghost" aria-label="Close plugin details" on:click={close}>✕</button>
+	</header>
+	<section class="card card-side border border-base-300 bg-base-200">
+		<figure class="shrink-0 p-6">
+			<img src={"https://openactionapi.github.io/plugins/icons/" + id + ".png"} alt={details.name} class="size-40 rounded-box object-cover shadow-lg" />
+		</figure>
+		<div class="card-body justify-center">
+			<h2 class="card-title text-3xl">{details.name}</h2>
+			<div class="flex items-center gap-2 text-base-content/60">
+				<span>by</span>
+				<img src={"https://avatars.githubusercontent.com/" + details.repository.split("/")[3]} alt="" class="avatar size-7 rounded-full" />
+				<a
+					target="_blank"
+					rel="noreferrer"
+					href={"https://github.com/" + details.repository.split("/")[3]}
+					on:click={() => window.open("https://github.com/" + details.repository.split("/")[3])}
+					class="link link-primary"
+				>
 					{details.author}
 					{#if details.repository.split("/")[3] != details.author}
 						({details.repository.split("/")[3]})
@@ -77,27 +87,27 @@
 				</a>
 			</div>
 
-			<div class="flex flex-row items-center mt-6">
-				<button on:click={install} class="px-8 py-3 active:translate-y-0.5 text-lg text-neutral-100 bg-indigo-600 rounded-l-lg"> Install </button>
-
-				<button
-					on:click={() => invoke("open_url", { url: details.download_url ?? details.repository + "/releases/latest" })}
-					class="ml-1 p-3.5 active:translate-y-0.5 text-lg text-neutral-100 bg-indigo-600 rounded-r-lg"
-				>
-					<ArrowSquareOut size={24} />
-				</button>
+			<div class="card-actions mt-4 items-center">
+				<div class="join">
+					<button type="button" on:click={install} class="btn btn-primary join-item">Install</button>
+					<button
+						type="button"
+						on:click={() => invoke("open_url", { url: details.download_url ?? details.repository + "/releases/latest" })}
+						class="btn btn-primary join-item"
+						aria-label="Open latest release"
+					>
+						<ArrowSquareOut size={20} />
+					</button>
+				</div>
 
 				{#if downloadCount}
-					<div class="flex flex-row ml-6 text-neutral-700 dark:text-neutral-300">
-						<span class="mr-1 text-lg">{downloadCount}</span>
-						<DownloadSimple size={28} />
-					</div>
+					<span class="badge badge-ghost gap-1"><DownloadSimple size={16} />{downloadCount}</span>
 				{/if}
 			</div>
 		</div>
-	</div>
+	</section>
 
-	<div class="mt-4 p-6 plugin-readme text-neutral-700 dark:text-neutral-300 border-4 border-neutral-300 dark:border-neutral-600 rounded-xl">
+	<article class="plugin-readme mt-4 rounded-box border border-base-300 bg-base-100 p-6">
 		{@html readme}
-	</div>
+	</article>
 </Popup>
