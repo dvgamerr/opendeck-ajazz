@@ -2,10 +2,15 @@ use std::path::{Path, PathBuf};
 
 use tiny_http::{Header, Response, Server};
 
+const PROPERTY_INSPECTOR_DAISYUI: &str = include_str!(concat!(env!("OUT_DIR"), "/property_inspector_daisyui.css"));
+const PROPERTY_INSPECTOR_DAISYUI_PATH: &str = "/__opendeck/daisyui.css";
 const PROPERTY_INSPECTOR_THEME: &str = include_str!("property_inspector_theme.css");
 
 fn inject_property_inspector_theme(content: &mut String) {
-	let theme = format!(r#"<style id="opendeck-property-inspector-theme">{PROPERTY_INSPECTOR_THEME}</style>"#);
+	let theme = format!(
+		r#"<link id="opendeck-property-inspector-daisyui" rel="stylesheet" href="{PROPERTY_INSPECTOR_DAISYUI_PATH}?v={}"><style id="opendeck-property-inspector-theme">{PROPERTY_INSPECTOR_THEME}</style>"#,
+		env!("OPENDECK_DAISYUI_HASH")
+	);
 	let lowercase_content = content.to_ascii_lowercase();
 	if let Some(head_end) = lowercase_content.rfind("</head>") {
 		content.insert_str(head_end, &theme);
@@ -46,6 +51,23 @@ pub async fn init_webserver(prefix: PathBuf) {
 		let mut url = urlencoding::decode(request.url()).unwrap().into_owned();
 		if url.contains('?') {
 			url = url.split_once('?').unwrap().0.to_owned();
+		}
+		if url == PROPERTY_INSPECTOR_DAISYUI_PATH {
+			let mut response = Response::from_string(PROPERTY_INSPECTOR_DAISYUI);
+			response.add_header(Header {
+				field: "Content-Type".parse().unwrap(),
+				value: "text/css; charset=utf-8".parse().unwrap(),
+			});
+			response.add_header(Header {
+				field: "Cache-Control".parse().unwrap(),
+				value: "public, max-age=31536000, immutable".parse().unwrap(),
+			});
+			response.add_header(Header {
+				field: "Access-Control-Allow-Origin".parse().unwrap(),
+				value: "*".parse().unwrap(),
+			});
+			let _ = request.respond(response);
+			continue;
 		}
 		#[cfg(target_os = "windows")]
 		let url = url[1..].replace('/', "\\");
@@ -93,11 +115,15 @@ pub async fn init_webserver(prefix: PathBuf) {
 					window.addEventListener("message", ({ data }) => {
 						if (data.event == "connect") {
 							event.stopImmediatePropagation();
-							document.documentElement.dataset.opendeckTheme = data.theme ?? "dark";
+							const theme = data.theme ?? "dark";
+							document.documentElement.dataset.theme = theme;
+							document.documentElement.dataset.opendeckTheme = theme;
 							if (typeof connectOpenActionSocket === "function") connectOpenActionSocket(...data.payload);
 							else connectElgatoStreamDeckSocket(...data.payload);
 						} else if (data.event == "theme") {
-							document.documentElement.dataset.opendeckTheme = data.theme ?? "dark";
+							const theme = data.theme ?? "dark";
+							document.documentElement.dataset.theme = theme;
+							document.documentElement.dataset.opendeckTheme = theme;
 						} else if (data.event == "windowClosed") {
 							event.stopImmediatePropagation();
 							if (opendeck_iframe_container.firstElementChild) opendeck_iframe_container.firstElementChild.remove();
@@ -117,6 +143,9 @@ pub async fn init_webserver(prefix: PathBuf) {
 							iframe.contentWindow.onbeforeunload = () => top.postMessage({ event: "windowClosed", payload: window.name }, "*");
 							iframe.contentWindow.close = () => { iframe.contentWindow.onbeforeunload(); iframe.remove(); };
 							iframe.contentWindow.document.body.style.overflowY = "auto";
+							const theme = document.documentElement.dataset.theme ?? "dark";
+							iframe.contentWindow.document.documentElement.dataset.theme = theme;
+							iframe.contentWindow.document.documentElement.dataset.opendeckTheme = theme;
 						};
 						iframe.src = url.startsWith("http") ? url : url + "|opendeck_property_inspector_child";
 						if (opendeck_iframe_container.firstElementChild) opendeck_iframe_container.firstElementChild.remove();
@@ -206,5 +235,30 @@ pub async fn init_webserver(prefix: PathBuf) {
 				let _ = request.respond(response);
 			}
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn injects_daisyui_before_the_compatibility_theme() {
+		let mut html = "<html><head><title>Inspector</title></head><body></body></html>".to_owned();
+		inject_property_inspector_theme(&mut html);
+
+		let daisyui = html.find("opendeck-property-inspector-daisyui").unwrap();
+		let compatibility_theme = html.find("opendeck-property-inspector-theme").unwrap();
+		assert!(daisyui < compatibility_theme);
+		assert!(html.contains(PROPERTY_INSPECTOR_DAISYUI_PATH));
+		assert!(html.contains(env!("OPENDECK_DAISYUI_HASH")));
+	}
+
+	#[test]
+	fn embedded_bundle_contains_core_daisyui_components_and_themes() {
+		assert!(PROPERTY_INSPECTOR_DAISYUI.contains("daisyUI"));
+		assert!(PROPERTY_INSPECTOR_DAISYUI.contains(".btn"));
+		assert!(PROPERTY_INSPECTOR_DAISYUI.contains(".input"));
+		assert!(PROPERTY_INSPECTOR_DAISYUI.contains("[data-theme=dark]"));
 	}
 }
