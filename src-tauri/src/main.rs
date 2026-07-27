@@ -1,8 +1,8 @@
 // Prevents additional console window on Windows in release.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod application_watcher;
 mod ajazz;
+mod application_watcher;
 mod events;
 mod plugins;
 mod shared;
@@ -83,6 +83,7 @@ async fn main() {
 		.invoke_handler(tauri::generate_handler![
 			frontend::restart,
 			frontend::get_devices,
+			frontend::devices::set_startup_image,
 			frontend::get_port_base,
 			frontend::get_categories,
 			frontend::get_localisations,

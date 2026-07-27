@@ -8,6 +8,7 @@
 
 	import ActionList from "../components/ActionList.svelte";
 	import DeviceSelector from "../components/DeviceSelector.svelte";
+	import DeviceStartupImage from "../components/DeviceStartupImage.svelte";
 	import DeviceView from "../components/DeviceView.svelte";
 	import NoDevicesDetected from "../components/NoDevicesDetected.svelte";
 	import ParentActionView from "../components/ParentActionView.svelte";
@@ -82,6 +83,7 @@
 			{#key selectedDevice}
 				{#if selectedDevice && devices[selectedDevice]}
 					<ProfileManager bind:device={devices[selectedDevice]} bind:profile={selectedProfiles[selectedDevice]} bind:this={$profileManager} />
+					<DeviceStartupImage device={devices[selectedDevice]} />
 				{/if}
 			{/key}
 		{/if}

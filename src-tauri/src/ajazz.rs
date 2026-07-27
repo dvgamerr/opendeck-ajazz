@@ -3,7 +3,7 @@ use crate::events::outbound::{encoder, keypad};
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
-use ajazz_sdk::{asynchronous::AsyncAjazz, AjazzError, Event, Kind};
+use ajazz_sdk::{AjazzError, Event, Kind, asynchronous::AsyncAjazz};
 use base64::Engine as _;
 use once_cell::sync::Lazy;
 use tokio::sync::RwLock;
@@ -42,6 +42,13 @@ pub async fn clear_screen(id: &str) -> Result<(), anyhow::Error> {
 	Ok(())
 }
 
+pub async fn set_startup_image(id: &str, image: image::DynamicImage) -> Result<(), anyhow::Error> {
+	let devices = AJAZZ_DEVICES.read().await;
+	let device = devices.get(id).ok_or_else(|| anyhow::anyhow!("Device is no longer connected"))?;
+	device.set_logo_image(image).await?;
+	Ok(())
+}
+
 pub async fn set_brightness(brightness: u8) {
 	for (_id, device) in AJAZZ_DEVICES.read().await.iter() {
 		let _ = device.set_brightness(brightness.clamp(0, 100)).await;
@@ -63,6 +70,10 @@ async fn init(device: AsyncAjazz, device_id: String) {
 	}
 
 	let kind = device.kind();
+	let startup_image = kind.boot_logo_size().map(|(width, height)| crate::shared::ImageSize {
+		width: width as u16,
+		height: height as u16,
+	});
 	let device_type = match kind {
 		Kind::Akp153 | Kind::Akp153E | Kind::Akp153R => 2,
 		Kind::Akp815 => 2,
@@ -96,6 +107,7 @@ async fn init(device: AsyncAjazz, device_id: String) {
 				columns: kind.column_count(),
 				encoders: kind.encoder_count(),
 				r#type: device_type,
+				startup_image,
 			},
 		},
 	)

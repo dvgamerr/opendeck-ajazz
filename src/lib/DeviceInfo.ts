@@ -5,4 +5,8 @@ export type DeviceInfo = {
 	columns: number;
 	encoders: number;
 	type: number;
+	startup_image?: {
+		width: number;
+		height: number;
+	};
 };

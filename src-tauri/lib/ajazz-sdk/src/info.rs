@@ -242,7 +242,8 @@ impl Kind {
     pub const fn boot_logo_size(&self) -> Option<(usize, usize)> {
         match self {
             Kind::Akp03 | Kind::Akp03E | Kind::Akp03R | Kind::Akp03RRev2 => Some((320, 240)),
-            _ => self.lcd_strip_size(),
+            Kind::Akp153 | Kind::Akp153E | Kind::Akp153R => Some((854, 480)),
+            Kind::Akp815 | Kind::Akp05E552A => Some((800, 480)),
         }
     }
 
@@ -336,6 +337,7 @@ mod tests {
         assert_eq!(kind.touchpoint_count(), 4);
         assert_eq!(kind.encoder_count(), 4);
         assert_eq!(kind.lcd_strip_size(), Some((800, 100)));
+        assert_eq!(kind.boot_logo_size(), Some((800, 480)));
     }
 
     #[test]

@@ -26,6 +26,12 @@ pub fn copy_dir(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), std:
 }
 
 /// Metadata of a device.
+#[derive(Clone, Deserialize, Serialize)]
+pub struct ImageSize {
+	pub width: u16,
+	pub height: u16,
+}
+
 #[serde_inline_default]
 #[derive(Clone, Deserialize, Serialize)]
 pub struct DeviceInfo {
@@ -37,6 +43,8 @@ pub struct DeviceInfo {
 	pub columns: u8,
 	pub encoders: u8,
 	pub r#type: u8,
+	#[serde_inline_default(None)]
+	pub startup_image: Option<ImageSize>,
 }
 
 pub static DEVICES: Lazy<DashMap<String, DeviceInfo>> = Lazy::new(DashMap::new);
