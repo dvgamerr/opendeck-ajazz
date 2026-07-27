@@ -85,7 +85,7 @@ select {
 }
 
 .device-workspace {
-	@apply flex min-h-0 flex-1 items-center justify-center overflow-visible;
+	@apply relative flex min-h-0 flex-1 items-center justify-center overflow-visible;
 	background-image: radial-gradient(circle at center, rgb(255 255 255 / 55%) 0, transparent 58%);
 }
 

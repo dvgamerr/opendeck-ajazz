@@ -20,6 +20,11 @@
 		} else {
 			document.documentElement.classList.remove("dark");
 		}
+
+		const theme = darktheme ? "dark" : "light";
+		document.querySelectorAll<HTMLIFrameElement>('iframe[title="Property inspector"]').forEach((iframe) => {
+			iframe.contentWindow?.postMessage({ event: "theme", theme }, "*");
+		});
 	}
 
 	onMount(() => {
@@ -74,7 +79,7 @@
 	}}
 />
 
-<Popup show={showPopup}>
+<Popup show={showPopup} fullscreen onClose={() => (showPopup = false)}>
 	<button class="mr-2 my-1 float-right text-xl dark:text-neutral-300" on:click={() => (showPopup = false)}>✕</button>
 	<h2 class="m-2 font-semibold text-xl dark:text-neutral-300">Settings</h2>
 	{#if $settings}

@@ -60,7 +60,7 @@
 	});
 </script>
 
-<Popup show>
+<Popup show fullscreen onClose={close}>
 	<button class="mr-2 my-1 float-right text-xl dark:text-neutral-300" on:click={close}>✕</button>
 	<div class="flex flex-row items-start">
 		<img src={"https://openactionapi.github.io/plugins/icons/" + id + ".png"} alt={details.name} class="size-48 rounded-2xl" />

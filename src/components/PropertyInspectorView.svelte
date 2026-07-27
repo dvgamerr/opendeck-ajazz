@@ -34,6 +34,7 @@
 		iframe?.contentWindow?.postMessage(
 			{
 				event: "connect",
+				theme: document.documentElement.classList.contains("dark") ? "dark" : "light",
 				payload: [
 					getWebSocketPort(),
 					instance.context,

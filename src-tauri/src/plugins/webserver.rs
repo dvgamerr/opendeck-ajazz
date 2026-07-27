@@ -2,6 +2,18 @@ use std::path::{Path, PathBuf};
 
 use tiny_http::{Header, Response, Server};
 
+const PROPERTY_INSPECTOR_THEME: &str = include_str!("property_inspector_theme.css");
+
+fn inject_property_inspector_theme(content: &mut String) {
+	let theme = format!(r#"<style id="opendeck-property-inspector-theme">{PROPERTY_INSPECTOR_THEME}</style>"#);
+	let lowercase_content = content.to_ascii_lowercase();
+	if let Some(head_end) = lowercase_content.rfind("</head>") {
+		content.insert_str(head_end, &theme);
+	} else {
+		content.push_str(&theme);
+	}
+}
+
 fn mime(extension: &str) -> String {
 	match extension {
 		"htm" | "html" | "xhtml" => "text/html".to_owned(),
@@ -71,6 +83,7 @@ pub async fn init_webserver(prefix: PathBuf) {
 			}
 
 			let mut content = tokio::fs::read_to_string(path).await.unwrap_or_default();
+			inject_property_inspector_theme(&mut content);
 			content += r#"
 				<div id="opendeck_iframe_container" style="position: absolute; z-index: 100; top: 0; left: 0; width: 100%; height: 100%; display: none;"></div>
 				<script>
@@ -80,8 +93,11 @@ pub async fn init_webserver(prefix: PathBuf) {
 					window.addEventListener("message", ({ data }) => {
 						if (data.event == "connect") {
 							event.stopImmediatePropagation();
+							document.documentElement.dataset.opendeckTheme = data.theme ?? "dark";
 							if (typeof connectOpenActionSocket === "function") connectOpenActionSocket(...data.payload);
 							else connectElgatoStreamDeckSocket(...data.payload);
+						} else if (data.event == "theme") {
+							document.documentElement.dataset.opendeckTheme = data.theme ?? "dark";
 						} else if (data.event == "windowClosed") {
 							event.stopImmediatePropagation();
 							if (opendeck_iframe_container.firstElementChild) opendeck_iframe_container.firstElementChild.remove();
@@ -149,6 +165,7 @@ pub async fn init_webserver(prefix: PathBuf) {
 			}
 
 			let mut content = tokio::fs::read_to_string(path).await.unwrap_or_default();
+			inject_property_inspector_theme(&mut content);
 			content = format!("<script>window.opener ??= window.parent;</script>{content}");
 
 			let mut response = Response::from_string(content);
