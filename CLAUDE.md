@@ -188,6 +188,7 @@ For driver/protocol changes, also run the Rust checks and the `ajazz-sdk` tests.
 - key image size `(130, 130)`;
 - 4 touchscreen points;
 - 4 encoders;
+- boot logo size `(810, 470)`;
 - LCD strip size `(800, 100)`.
 
 Hardware acceptance is stronger than compilation. A successful session should log:

@@ -243,7 +243,8 @@ impl Kind {
         match self {
             Kind::Akp03 | Kind::Akp03E | Kind::Akp03R | Kind::Akp03RRev2 => Some((320, 240)),
             Kind::Akp153 | Kind::Akp153E | Kind::Akp153R => Some((854, 480)),
-            Kind::Akp815 | Kind::Akp05E552A => Some((800, 480)),
+            Kind::Akp815 => Some((800, 480)),
+            Kind::Akp05E552A => Some((810, 470)),
         }
     }
 
@@ -278,7 +279,7 @@ impl Kind {
 
             Kind::Akp05E552A => ImageFormat {
                 mode: ImageMode::JPEG,
-                size: (800, 480),
+                size: (810, 470),
                 rotation: ImageRotation::Rot180,
                 mirror: ImageMirroring::None,
             },
@@ -351,7 +352,8 @@ mod tests {
         assert_eq!(kind.touchpoint_count(), 4);
         assert_eq!(kind.encoder_count(), 4);
         assert_eq!(kind.lcd_strip_size(), Some((800, 100)));
-        assert_eq!(kind.boot_logo_size(), Some((800, 480)));
+        assert_eq!(kind.boot_logo_size(), Some((810, 470)));
+        assert_eq!(kind.logo_image_format().size, (810, 470));
         assert_eq!(kind.key_image_format().size, (130, 130));
         assert!(matches!(
             kind.logo_image_format().rotation,
