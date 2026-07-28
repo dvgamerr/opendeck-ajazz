@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { DeviceInfo } from "$lib/DeviceInfo";
+	import type { Profile } from "$lib/Profile";
 
 	import Gear from "phosphor-svelte/lib/Gear";
 	import Star from "phosphor-svelte/lib/Star";
@@ -8,7 +9,8 @@
 	import Tooltip from "./Tooltip.svelte";
 
 	import { settings } from "$lib/settings";
-	import { PRODUCT_NAME } from "$lib/singletons";
+	import { inspectedInstance, inspectedParentAction } from "$lib/propertyInspector";
+	import { PRODUCT_NAME, profileManager } from "$lib/singletons";
 
 	import { invoke } from "@tauri-apps/api/core";
 	import { listen } from "@tauri-apps/api/event";
@@ -20,6 +22,21 @@
 	let buildInfo: string;
 	let activeTab: "general" | "startup-image" = "general";
 	$: startupImageDevice = device?.startup_image ? device : undefined;
+
+	async function closeSettings() {
+		showPopup = false;
+		inspectedInstance.set(null);
+		inspectedParentAction.set(null);
+
+		const deviceId = device?.id;
+		if (!deviceId) return;
+		try {
+			const selectedProfile = await invoke<Profile>("get_selected_profile", { device: deviceId });
+			if (device?.id == deviceId) $profileManager?.applySelectedProfile(selectedProfile);
+		} catch {
+			// The selected device can disconnect while Settings is closing.
+		}
+	}
 
 	function updateTheme(darktheme: boolean) {
 		const theme = darktheme ? "dark" : "light";
@@ -78,18 +95,18 @@
 
 <svelte:window
 	on:keydown={(event) => {
-		if (event.key == "Escape") showPopup = false;
+		if (event.key == "Escape" && showPopup) void closeSettings();
 	}}
 />
 
-<Popup show={showPopup} fullscreen onClose={() => (showPopup = false)}>
+<Popup show={showPopup} fullscreen onClose={closeSettings}>
 	<div class="flex h-full min-h-0 flex-col">
 		<header class="flex shrink-0 items-center border-b border-base-300 pb-4">
 			<div>
 				<p class="text-xs font-semibold tracking-widest text-base-content/50">OPENDECK</p>
 				<h2 class="text-2xl font-semibold">Settings</h2>
 			</div>
-			<button type="button" class="btn btn-circle btn-ghost ml-auto" aria-label="Close settings" on:click={() => (showPopup = false)}>✕</button>
+			<button type="button" class="btn btn-circle btn-ghost ml-auto" aria-label="Close settings" on:click={closeSettings}>✕</button>
 		</header>
 
 		<div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">

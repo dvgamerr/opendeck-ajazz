@@ -84,6 +84,8 @@ async fn main() {
 			frontend::restart,
 			frontend::get_devices,
 			frontend::devices::set_startup_image,
+			frontend::devices::get_startup_image_project,
+			frontend::devices::save_startup_image_project,
 			frontend::get_port_base,
 			frontend::get_categories,
 			frontend::get_localisations,

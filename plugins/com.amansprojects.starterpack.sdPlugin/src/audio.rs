@@ -137,6 +137,40 @@ fn text_path(text: &str, center: f32, baseline: u8, size: u8, fill: &str) -> Str
 	)
 }
 
+fn text_width(text: &str, size: u8) -> f32 {
+	let face = &*PIXELOID;
+	let advance = text
+		.chars()
+		.filter_map(|character| {
+			face.glyph_index(character)
+				.or_else(|| face.glyph_index('?'))
+		})
+		.map(|glyph| f32::from(face.glyph_hor_advance(glyph).unwrap_or_default()))
+		.sum::<f32>();
+	advance * f32::from(size) / f32::from(face.units_per_em())
+}
+
+fn centered_status_layout(status: &str) -> (f32, f32) {
+	const IMAGE_CENTER: f32 = 88.0;
+	const SPEAKER_LEFT: f32 = 10.0;
+	const SPEAKER_WIDTH: f32 = 41.0;
+	const GAP: f32 = 10.0;
+
+	let status_width = text_width(status, 29);
+	let row_left = IMAGE_CENTER - (SPEAKER_WIDTH + GAP + status_width) / 2.0;
+	let speaker_offset = row_left - SPEAKER_LEFT;
+	let status_center = row_left + SPEAKER_WIDTH + GAP + status_width / 2.0;
+	(speaker_offset, status_center)
+}
+
+fn device_switch_indicator(event: &str) -> &'static str {
+	match event {
+		"PREV" => r##"<path d="M14 95l-5 4 5 4" fill="none" stroke="#facc15" stroke-width="2"/>"##,
+		"NEXT" => r##"<path d="M162 95l5 4-5 4" fill="none" stroke="#facc15" stroke-width="2"/>"##,
+		_ => "",
+	}
+}
+
 fn snapshot_image(snapshot: &AudioSnapshot, event: &str) -> String {
 	let volume = snapshot.volume.min(100);
 	let bar_width = u16::from(volume) * 140 / 100;
@@ -147,30 +181,31 @@ fn snapshot_image(snapshot: &AudioSnapshot, event: &str) -> String {
 		format!("{volume}%")
 	};
 	let device_name = truncate_label(&driver_name(&snapshot.device_name).to_uppercase(), 22);
-	let status_path = text_path(&status, 105.0, 62, 29, accent);
+	let (speaker_offset, status_center) = centered_status_layout(&status);
+	let status_path = text_path(&status, status_center, 62, 29, accent);
 	let device_path = text_path(&device_name, 88.0, 102, 10, "#a7b0c0");
 	let speaker_waves = if snapshot.muted {
 		r##"<path d="M34 42h5v5h5v5h-5v5h-5v-5h-5v-5h5z" fill="#ff3155"/>"##
 	} else {
 		r##"<path d="M32 42h5v5h4v10h-4v5h-5v-5h4V47h-4zM42 37h5v5h4v20h-4v5h-5v-5h4V42h-4z" fill="#f8fafc"/>"##
 	};
-	let event_badge = if event.is_empty() {
-		String::new()
-	} else {
-		text_path(event, 149.0, 15, 9, "#facc15")
-	};
+	let switch_indicator = device_switch_indicator(event);
 
 	let svg = format!(
 		r##"<svg xmlns="http://www.w3.org/2000/svg" width="176" height="112" viewBox="0 0 176 112" shape-rendering="crispEdges">
 <rect width="176" height="112" fill="#000"/>
+<g transform="translate(0 -13)">
+<g transform="translate({speaker_offset:.2} 0)">
 <path d="M10 45h9v14h-9zM19 41h5v22h-5zM24 36h5v32h-5z" fill="#f8fafc"/>
 {speaker_waves}
+</g>
 {status_path}
-{event_badge}
 <rect x="18" y="75" width="140" height="8" fill="#20242c"/>
 <rect x="18" y="75" width="{bar_width}" height="8" fill="{accent}"/>
 <path d="M31 75v8m14-8v8m14-8v8m14-8v8m14-8v8m14-8v8m14-8v8m14-8v8m14-8v8" stroke="#000" stroke-width="2"/>
 {device_path}
+{switch_indicator}
+</g>
 </svg>"##
 	);
 
@@ -473,7 +508,28 @@ mod platform {
 
 #[cfg(test)]
 mod tests {
-	use super::{AudioSnapshot, driver_name, snapshot_image};
+	use super::{
+		AudioSnapshot, centered_status_layout, device_switch_indicator, driver_name,
+		snapshot_image, text_width,
+	};
+
+	#[test]
+	fn speaker_and_status_are_centered_as_one_group() {
+		for status in ["0%", "50%", "100%", "MUTED"] {
+			let (speaker_offset, status_center) = centered_status_layout(status);
+			let speaker_left = 10.0 + speaker_offset;
+			let status_right = status_center + text_width(status, 29) / 2.0;
+			assert!(((speaker_left + status_right) / 2.0 - 88.0).abs() < 0.01);
+		}
+	}
+
+	#[test]
+	fn device_switch_uses_directional_chevrons_instead_of_text() {
+		assert!(device_switch_indicator("PREV").contains("M14 95"));
+		assert!(device_switch_indicator("NEXT").contains("M162 95"));
+		assert!(!device_switch_indicator("PREV").contains("PREV"));
+		assert!(!device_switch_indicator("NEXT").contains("NEXT"));
+	}
 
 	#[test]
 	fn lcd_image_uses_native_zone_dimensions_and_font_paths() {
@@ -489,6 +545,7 @@ mod tests {
 		assert!(image.starts_with("data:image/svg+xml,"));
 		assert!(image.contains("width%3D%22176%22"));
 		assert!(image.contains("height%3D%22112%22"));
+		assert!(image.contains("translate%280%20-13%29"));
 		assert!(image.contains("transform%3D%22translate"));
 		assert!(!image.contains("%3Ctext"));
 		assert!(image.len() < 50_000);
@@ -529,6 +586,8 @@ mod tests {
 
 		assert!(muted.contains("%23ff3155"));
 		assert!(switched.contains("%23facc15"));
+		assert!(!switched.contains("NEXT"));
+		assert!(!switched.contains("PREV"));
 		assert!(switched.contains("%23000"));
 		assert!(!switched.contains("linearGradient"));
 		assert!(!switched.contains("rx%3D"));

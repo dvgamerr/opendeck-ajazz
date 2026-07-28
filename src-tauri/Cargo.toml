@@ -45,6 +45,7 @@ json-patch = "4.0"
 os_info = "3.12"
 urlencoding = "2.1"
 base64 = "0.22"
+roxmltree = "0.20"
 reqwest = "0.12"
 zip = { version = "4.0", default-features = false, features = ["deflate", "zstd"] }
 active-win-pos-rs = "0.9"
