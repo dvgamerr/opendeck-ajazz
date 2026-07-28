@@ -7,7 +7,7 @@
 {#if show}
 	{#if fullscreen}
 		<div class="modal modal-open z-[200]" role="dialog" aria-modal="true">
-			<section class="modal-box h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-none overflow-y-auto border border-base-300 p-6">
+			<section class="modal-box h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-none overflow-x-hidden overflow-y-auto border border-base-300 p-6">
 				<slot />
 			</section>
 			<button type="button" class="modal-backdrop bg-black/60 backdrop-blur-sm" aria-label="Close modal" on:click={() => onClose?.()}>Close</button>

@@ -100,7 +100,7 @@
 />
 
 <Popup show={showPopup} fullscreen onClose={closeSettings}>
-	<div class="flex h-full min-h-0 flex-col">
+	<div class="flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden">
 		<header class="flex shrink-0 items-center border-b border-base-300 pb-4">
 			<div>
 				<p class="text-xs font-semibold tracking-widest text-base-content/50">OPENDECK</p>
@@ -118,8 +118,8 @@
 			</div>
 
 			{#if activeTab == "general" && $settings}
-				<div class="mt-5 grid min-h-0 flex-1 gap-5 overflow-y-auto xl:grid-cols-2">
-					<section class="card border border-base-300 bg-base-200">
+				<div class="mt-5 grid min-h-0 min-w-0 flex-1 gap-5 overflow-x-hidden overflow-y-auto xl:grid-cols-2">
+					<section class="card min-w-0 border border-base-300 bg-base-200">
 						<div class="card-body gap-4">
 							<h3 class="card-title text-base">Appearance &amp; device</h3>
 							<label class="form-control grid grid-cols-[minmax(10rem,1fr)_auto] items-center gap-4">
@@ -148,7 +148,7 @@
 						</div>
 					</section>
 
-					<section class="card border border-base-300 bg-base-200">
+					<section class="card min-w-0 border border-base-300 bg-base-200">
 						<div class="card-body gap-4">
 							<h3 class="card-title text-base">Startup &amp; privacy</h3>
 							<label class="form-control grid grid-cols-[1fr_auto] items-center gap-4">
@@ -170,7 +170,7 @@
 						</div>
 					</section>
 
-					<section class="card border border-base-300 bg-base-200 xl:col-span-2">
+					<section class="card min-w-0 border border-base-300 bg-base-200 xl:col-span-2">
 						<div class="card-body gap-4">
 							<h3 class="card-title text-base">Advanced</h3>
 							{#if !buildInfo?.includes("windows")}
