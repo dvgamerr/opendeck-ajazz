@@ -1,11 +1,11 @@
 [package]
-name = "opendeck-ajazz"
+name = "pixeldeck-ajazz"
 version = "0.1.0"
 description = "Use ajazz stream controllers on linux"
 authors = ["Aman Khanna (nekename)", "mistweaverco and friends"]
 license = "GPL-3.0-or-later"
-repository = "https://github.com/mistweaverco/opendeck-ajazz"
-default-run = "opendeck-ajazz"
+repository = "https://github.com/dvgamerr/pixeldeck-ajazz"
+default-run = "pixeldeck-ajazz"
 edition = "2024"
 
 [build-dependencies]

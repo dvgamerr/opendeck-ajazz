@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-	<id>opendeck-ajazz</id>
+	<id>pixeldeck-ajazz</id>
 
-	<name>opendeck-ajazz</name>
+	<name>Pixeldeck Ajazz</name>
 	<summary>Use ajazz stream controllers on Linux</summary>
 	<developer id="com.mistweaverco"><name>mistweaverco</name></developer>
-	<launchable type="desktop-id">opendeck-ajazz.desktop</launchable>
+	<launchable type="desktop-id">pixeldeck-ajazz.desktop</launchable>
 
-	<url type="vcs-browser">https://github.com/mistweaverco/opendeck-ajazz</url>
-	<url type="homepage">https://opendeck.mwco.app</url>
-	<url type="bugtracker">https://github.com/mistweaverco/opendeck-ajazz/issues</url>
-	<url type="faq">https://github.com/nmistweavercoopendeck-ajazz?tab=readme-ov-file#supported-devices</url>
-	<url type="contribute">https://github.com/mistweaverco/opendeck-ajazz?tab=readme-ov-file#contributing</url>
+	<url type="vcs-browser">https://github.com/dvgamerr/pixeldeck-ajazz</url>
+	<url type="homepage">https://github.com/dvgamerr/pixeldeck-ajazz</url>
+	<url type="bugtracker">https://github.com/dvgamerr/pixeldeck-ajazz/issues</url>
+	<url type="faq">https://github.com/dvgamerr/pixeldeck-ajazz?tab=readme-ov-file#supported-devices</url>
+	<url type="contribute">https://github.com/dvgamerr/pixeldeck-ajazz?tab=readme-ov-file#contributing</url>
 	<url type="donation">https://github.com/sponsors/gorillamoe</url>
 	<url type="contact">https://mistweaverco.com/discord</url>
 
@@ -28,7 +28,7 @@
 
 	<screenshots>
 		<screenshot type="default">
-      <image>https://raw.githubusercontent.com/mistweaverco/opendeck-ajazz/refs/heads/main/assets/logo.png</image>
+      <image>https://raw.githubusercontent.com/dvgamerr/pixeldeck-ajazz/refs/heads/main/assets/logo.png</image>
 		</screenshot>
 	</screenshots>
 
@@ -39,7 +39,7 @@
 
 	<releases>
 		<release version="0.1.0" date="2025-10-22">
-			<url type="details">https://github.com/mistweaverco/opendeck-ajazz/releases/tag/v0.1.0</url>
+			<url type="details">https://github.com/dvgamerr/pixeldeck-ajazz/releases/tag/v0.1.0</url>
 			<description>
 				<ul>
 					<li>Inital release</li>

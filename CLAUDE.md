@@ -1,4 +1,4 @@
-# opendeck-ajazz Project Knowledge
+# Pixeldeck Ajazz Project Knowledge
 
 ## Scope and terminology
 
@@ -136,7 +136,7 @@ Primary protocol reference:
 - `tauri-plugin-single-instance` is pinned to `2.2.2`.
 - Initialize the single-instance plugin first in the Tauri builder chain. Changing its initialization order previously caused a Windows null-pointer abort.
 - `dragDropEnabled` is `false` in `tauri.conf.json` so frontend HTML drag-and-drop remains in control.
-- Do not launch duplicate Tauri dev sessions. Check existing `bun`, `cargo`, and `opendeck-ajazz.exe` processes first.
+- Do not launch duplicate Tauri dev sessions. Check existing `bun`, `cargo`, and `pixeldeck-ajazz.exe` processes first.
 
 ## Development commands
 

@@ -1,12 +1,12 @@
 <div align="center">
 
-![opendeck-ajazz Logo](assets/logo.svg)
+![Pixeldeck Ajazz Logo](assets/logo.svg)
 
-# opendeck-ajazz
+# Pixeldeck Ajazz
 
-[![Made with love](assets/badge-made-with-love.svg)](https://github.com/mistweaverco/opendeck-ajazz/graphs/contributors)
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/mistweaverco/opendeck-ajazz?style=for-the-badge)](https://github.com/mistweaverco/opendeck-ajazz/releases/latest)
-[![Development status)](assets/badge-development-status.svg)](https://github.com/orgs/mistweaverco/projects/5/views/1?filterQuery=repo%3Amistweaverco%2Fopendeck-ajazz)
+[![Made with love](assets/badge-made-with-love.svg)](https://github.com/dvgamerr/pixeldeck-ajazz/graphs/contributors)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/dvgamerr/pixeldeck-ajazz?style=for-the-badge)](https://github.com/dvgamerr/pixeldeck-ajazz/releases/latest)
+[![Development status)](assets/badge-development-status.svg)](https://github.com/dvgamerr/pixeldeck-ajazz/issues)
 [![Discord](assets/badge-discord.svg)](https://mistweaverco.com/discord)
 
 <p></p>
@@ -39,8 +39,8 @@ support for Ajazz devices.
 
 ### Linux
 
-- Download the latest release from [GitHub Releases](https://github.com/mistweaverco/opendeck-ajazz/releases/latest).
-	- You should avoid AppImage releases of opendeck-ajazz as they tend to
+- Download the latest release from [GitHub Releases](https://github.com/dvgamerr/pixeldeck-ajazz/releases/latest).
+	- You should avoid AppImage releases of Pixeldeck Ajazz as they tend to
     have problems (you should also just avoid AppImages in general).
 - Install the appropriate udev subsystem rules from
   [here](src-tauri/bundle/40-ajazz.rules)
@@ -62,13 +62,13 @@ support for Ajazz devices.
 You'll need to ensure that all of the
 [prerequisites for building a
 Tauri application](https://tauri.app/start/prerequisites)
-are satisfied to build opendeck-ajazz from source.
+are satisfied to build Pixeldeck Ajazz from source.
 
 You'll also need `libudev` installed for your distribution.
 
 After running `bun install --frozen-lockfile`,
 you can use `bun run tauri dev` and
-`NO_STRIP=true bun run tauri build` to work with opendeck-ajazz.
+`NO_STRIP=true bun run tauri build` to work with Pixeldeck Ajazz.
 
 Before each commit, please ensure that all of the following are completed:
 
@@ -80,7 +80,7 @@ Before each commit, please ensure that all of the following are completed:
 
 ## License
 
-opendeck-ajazz is based of OpenDeck and
+Pixeldeck Ajazz is based of OpenDeck and
 therefore licensed under the GNU General Public License version 3.0 or later.
 
 For more details, see the [LICENSE.md](LICENSE.md) file.

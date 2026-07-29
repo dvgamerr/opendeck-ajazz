@@ -3,7 +3,7 @@
 if [ -z "$VERSION" ]; then echo "Error: VERSION is not set"; exit 1; fi
 if [ -z "$PLATFORM" ]; then echo "Error: PLATFORM is not set"; exit 1; fi
 
-BIN_NAME="opendeck-ajazz"
+BIN_NAME="pixeldeck-ajazz"
 RELEASE_ACTION="create"
 GH_TAG="v$VERSION"
 FILES=()
@@ -16,9 +16,9 @@ LINUX_FILES=(
 
 # Strip version from filename
 # e.g.
-# - opendeck-ajazz_1.0.0_amd64.deb -> opendeck-ajazz.amd64.deb
-# - opendeck-ajazz_1.0.0-1.x86_64.rpm -> opendeck-ajazz.x86_64.rpm
-# - opendeck-ajazz_1.0.0_amd64.AppImage -> opendeck-ajazz.AppImage
+# - pixeldeck-ajazz_1.0.0_amd64.deb -> pixeldeck-ajazz.amd64.deb
+# - pixeldeck-ajazz_1.0.0-1.x86_64.rpm -> pixeldeck-ajazz.x86_64.rpm
+# - pixeldeck-ajazz_1.0.0_amd64.AppImage -> pixeldeck-ajazz.AppImage
 strip_version_from_filename() {
   local filename="$1"
   local base_filename

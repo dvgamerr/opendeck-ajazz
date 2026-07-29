@@ -1,10 +1,10 @@
 {
-	"name": "opendeck-ajazz",
+	"name": "pixeldeck-ajazz",
 	"version": "0.1.0",
 	"description": "Use stream controllers",
 	"author": "mistweaverco and friends",
 	"license": "GPL-3.0-or-later",
-	"repository": "https://github.com/mistweaverco/opendeck-ajazz",
+	"repository": "https://github.com/dvgamerr/pixeldeck-ajazz",
 	"scripts": {
 		"dev": "bun x --bun --no-install vite dev",
 		"build": "bun x --bun --no-install vite build",
@@ -12,6 +12,9 @@
 		"format": "prettier --write \"src/**/*.{ts,svelte,css,html}\" \"plugins/**/*.ts\" \"*.{js,ts,json}\"",
 		"format:check": "prettier --check \"src/**/*.{ts,svelte,css,html}\" \"plugins/**/*.ts\" \"*.{js,ts,json}\"",
 		"lint": "eslint .",
+		"icon:generate": "pwsh -NoProfile -File scripts/generate-icons.ps1",
+		"installer:windows": "bun run tauri build --bundles nsis,msi",
+		"sync:version": "bun scripts/version-tag.mjs",
 		"cg:update": "cargo update --manifest-path src-tauri/Cargo.toml && cargo update --manifest-path src-tauri/lib/ajazz-sdk/Cargo.toml && cargo update --manifest-path plugins/com.amansprojects.starterpack.sdPlugin/Cargo.toml",
 		"tauri": "bun x --bun --no-install tauri"
 	},

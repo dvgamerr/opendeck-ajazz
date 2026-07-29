@@ -3057,53 +3057,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "opendeck-ajazz"
-version = "0.1.0"
-dependencies = [
- "active-win-pos-rs",
- "ajazz-sdk",
- "anyhow",
- "base64 0.22.1",
- "built",
- "dashmap",
- "elgato-streamdeck",
- "fix-path-env",
- "fs2",
- "futures",
- "image",
- "json-patch 4.2.0",
- "log",
- "log-panics",
- "once_cell",
- "open",
- "os_info",
- "path-slash",
- "reqwest 0.12.28",
- "roxmltree",
- "semver",
- "serde",
- "serde-inline-default",
- "serde_json",
- "serde_with",
- "sysinfo",
- "tauri",
- "tauri-build",
- "tauri-plugin-aptabase",
- "tauri-plugin-autostart",
- "tauri-plugin-cors-fetch",
- "tauri-plugin-deep-link",
- "tauri-plugin-dialog",
- "tauri-plugin-log",
- "tauri-plugin-single-instance",
- "tiny_http",
- "tokio",
- "tokio-tungstenite",
- "urlencoding",
- "windows-sys 0.60.2",
- "zip",
-]
-
-[[package]]
 name = "openssl"
 version = "0.10.81"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3340,6 +3293,53 @@ dependencies = [
  "atomic-waker",
  "fastrand",
  "futures-io",
+]
+
+[[package]]
+name = "pixeldeck-ajazz"
+version = "0.1.0"
+dependencies = [
+ "active-win-pos-rs",
+ "ajazz-sdk",
+ "anyhow",
+ "base64 0.22.1",
+ "built",
+ "dashmap",
+ "elgato-streamdeck",
+ "fix-path-env",
+ "fs2",
+ "futures",
+ "image",
+ "json-patch 4.2.0",
+ "log",
+ "log-panics",
+ "once_cell",
+ "open",
+ "os_info",
+ "path-slash",
+ "reqwest 0.12.28",
+ "roxmltree",
+ "semver",
+ "serde",
+ "serde-inline-default",
+ "serde_json",
+ "serde_with",
+ "sysinfo",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-aptabase",
+ "tauri-plugin-autostart",
+ "tauri-plugin-cors-fetch",
+ "tauri-plugin-deep-link",
+ "tauri-plugin-dialog",
+ "tauri-plugin-log",
+ "tauri-plugin-single-instance",
+ "tiny_http",
+ "tokio",
+ "tokio-tungstenite",
+ "urlencoding",
+ "windows-sys 0.60.2",
+ "zip",
 ]
 
 [[package]]

@@ -2,7 +2,7 @@
 	"app": {
 		"windows": [
 			{
-				"title": "opendeck-ajazz",
+				"title": "Pixeldeck Ajazz",
 				"fullscreen": false,
 				"resizable": true,
 				"width": 800,
