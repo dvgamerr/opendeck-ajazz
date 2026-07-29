@@ -99,6 +99,7 @@ async fn main() {
 			frontend::instances::update_image,
 			frontend::profiles::get_profiles,
 			frontend::profiles::get_selected_profile,
+			frontend::profiles::reload_selected_profile,
 			frontend::profiles::set_selected_profile,
 			frontend::profiles::delete_profile,
 			frontend::property_inspector::make_info,
@@ -128,6 +129,11 @@ async fn main() {
 			}
 
 			let old = app.path().config_dir().unwrap().join("com.mistweaverco.opendeck-ajazz");
+			if old.exists() {
+				let _ = std::fs::rename(old, app.path().app_config_dir().unwrap());
+			}
+
+			let old = app.path().config_dir().unwrap().join("opendeck-ajazz");
 			if old.exists() {
 				let _ = std::fs::rename(old, app.path().app_config_dir().unwrap());
 			}
@@ -243,9 +249,9 @@ If you have already donated, thank you so much for your support!"#,
 
 			async fn update() -> Result<(), anyhow::Error> {
 				let res = reqwest::Client::new()
-					.get("https://api.github.com/repos/mistweaverco/opendeck-ajazz/releases/latest")
+					.get("https://api.github.com/repos/dvgamerr/pixeldeck-ajazz/releases/latest")
 					.header("Accept", "application/vnd.github+json")
-					.header("User-Agent", "opendeck-ajazz")
+					.header("User-Agent", "pixeldeck-ajazz")
 					.send()
 					.await?
 					.json::<serde_json::Value>()
@@ -286,7 +292,7 @@ If you have already donated, thank you so much for your support!"#,
 			tauri_plugin_log::Builder::default()
 				.targets([Target::new(TargetKind::LogDir { file_name: None }), Target::new(TargetKind::Stdout)])
 				.level(log::LevelFilter::Info)
-				.level_for("opendeck-ajazz", log::LevelFilter::Trace)
+				.level_for("pixeldeck-ajazz", log::LevelFilter::Trace)
 				.build(),
 		)
 		.plugin(tauri_plugin_cors_fetch::init())

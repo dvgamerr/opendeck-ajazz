@@ -25,6 +25,31 @@ pub async fn get_selected_profile(device: String) -> Result<crate::shared::Profi
 
 #[allow(clippy::flat_map_identity)]
 #[command]
+pub async fn reload_selected_profile(device: String) -> Result<crate::shared::Profile, Error> {
+	let mut locks = acquire_locks_mut().await;
+	if !DEVICES.contains_key(&device) {
+		return Err(Error::new(format!("device {device} not found")));
+	}
+
+	let selected_profile = locks.device_stores.get_selected_profile(&device)?;
+	crate::events::outbound::devices::clear_screen(device.clone()).await?;
+
+	let profile = locks.profile_stores.get_profile_store(&DEVICES.get(&device).unwrap(), &selected_profile)?;
+	for instance in profile.value.keys.iter().flatten().chain(profile.value.sliders.iter().flatten()) {
+		if !matches!(instance.action.uuid.as_str(), "opendeck.multiaction" | "opendeck.toggleaction") {
+			let _ = crate::events::outbound::will_appear::will_appear(instance).await;
+		} else {
+			for child in instance.children.as_ref().unwrap() {
+				let _ = crate::events::outbound::will_appear::will_appear(child).await;
+			}
+		}
+	}
+
+	Ok(profile.value.clone())
+}
+
+#[allow(clippy::flat_map_identity)]
+#[command]
 pub async fn set_selected_profile(device: String, id: String) -> Result<(), Error> {
 	let mut locks = acquire_locks_mut().await;
 	if !DEVICES.contains_key(&device) {

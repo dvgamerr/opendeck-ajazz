@@ -31,7 +31,7 @@
 		const deviceId = device?.id;
 		if (!deviceId) return;
 		try {
-			const selectedProfile = await invoke<Profile>("get_selected_profile", { device: deviceId });
+			const selectedProfile = await invoke<Profile>("reload_selected_profile", { device: deviceId });
 			if (device?.id == deviceId) $profileManager?.applySelectedProfile(selectedProfile);
 		} catch {
 			// The selected device can disconnect while Settings is closing.
@@ -217,7 +217,7 @@
 					<span class="ml-2 text-xs text-base-content/50">{@html buildInfo}</span>
 					<div class="ml-auto flex items-center gap-1 text-sm text-base-content/60">
 						<span>Please leave a</span>
-						<button type="button" on:click={() => invoke("open_url", { url: "https://github.com/mistweaverco/opendeck-ajazz" })} class="link link-primary">star on GitHub</button>
+						<button type="button" on:click={() => invoke("open_url", { url: "https://github.com/dvgamerr/pixeldeck-ajazz" })} class="link link-primary">star on GitHub</button>
 						<Star weight="fill" class="text-warning" />
 					</div>
 				</footer>
