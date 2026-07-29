@@ -48,7 +48,7 @@
 	}
 </script>
 
-<div class="flex min-h-0 flex-1 flex-col">
+<div class="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
 	<div class="shrink-0 space-y-3 border-b border-base-300 p-4">
 		<label class="input input-sm w-full bg-base-200 focus-within:input-primary">
 			<MagnifyingGlass size="15" class="shrink-0 opacity-60" color="currentColor" />
@@ -66,7 +66,7 @@
 		</div>
 	</div>
 
-	<ul class="menu min-h-0 flex-1 flex-nowrap overflow-y-auto px-3 py-2 select-none">
+	<ul class="menu min-h-0 w-full flex-1 flex-nowrap overflow-x-hidden overflow-y-auto px-3 py-2 select-none">
 		{#each filteredCategories as [name, { icon, actions }]}
 			<li>
 				<details open>

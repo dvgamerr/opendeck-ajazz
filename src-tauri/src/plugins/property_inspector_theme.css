@@ -237,8 +237,12 @@ details:not(.collapse) summary {
 }
 
 code,
-output {
+output:not(.badge) {
 	color: var(--color-primary);
+}
+
+output.badge {
+	color: var(--color-primary-content);
 }
 
 @media (max-width: 560px) {
