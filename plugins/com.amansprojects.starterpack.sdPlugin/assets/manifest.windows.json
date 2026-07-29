@@ -41,6 +41,16 @@
 			"PropertyInspectorPath": "propertyInspector/deviceBrightness.html"
 		},
 		{
+			"Icon": "icons/systemMonitor",
+			"Name": "System Monitor",
+			"States": [{ "Image": "actionDefaultImage", "ShowTitle": false }],
+			"Controllers": ["Encoder"],
+			"SupportedInMultiActions": false,
+			"Tooltip": "Realtime CPU, GPU, and memory monitor",
+			"UUID": "com.amansprojects.starterpack.systemmonitor",
+			"PropertyInspectorPath": "propertyInspector/systemMonitor.html"
+		},
+		{
 			"Icon": "icons/systemVolume",
 			"Name": "Volume + Sound Device",
 			"States": [{ "Image": "actionDefaultImage", "ShowTitle": false }],

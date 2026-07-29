@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<script>
+			function connectElgatoStreamDeckSocket(port, uuid, registerEvent) {
+				const socket = new WebSocket("ws://localhost:" + port);
+				socket.onopen = () => socket.send(JSON.stringify({ event: registerEvent, uuid }));
+			}
+		</script>
+	</head>
+	<body class="bg-base-200 text-base-content">
+		<section class="card bg-base-100">
+			<div class="card-body">
+				<header>
+					<h1 class="card-title">System Monitor</h1>
+					<span class="badge badge-neutral">Realtime encoder</span>
+				</header>
+				<div class="stats stats-vertical">
+					<div class="stat">
+						<div class="stat-title">CPU</div>
+						<div class="stat-value text-info">LIVE</div>
+					</div>
+					<div class="stat">
+						<div class="stat-title">GPU</div>
+						<div class="stat-value text-secondary">LIVE</div>
+					</div>
+					<div class="stat">
+						<div class="stat-title">Memory</div>
+						<div class="stat-value text-warning">LIVE</div>
+					</div>
+				</div>
+				<div role="alert" class="alert">
+					<span>CPU, GPU, and physical memory refresh once per second.</span>
+				</div>
+			</div>
+		</section>
+	</body>
+</html>

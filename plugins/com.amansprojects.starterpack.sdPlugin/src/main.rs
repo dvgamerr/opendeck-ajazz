@@ -1,8 +1,11 @@
 mod audio;
 mod device_brightness;
 mod input_simulation;
+mod live;
+mod pixel;
 mod run_command;
 mod switch_profile;
+mod system_monitor;
 
 use openaction::*;
 
@@ -133,7 +136,24 @@ impl openaction::ActionEventHandler for ActionEventHandler {
 		event: AppearEvent,
 		outbound: &mut openaction::OutboundEventManager,
 	) -> EventHandlerResult {
-		audio::refresh(&event.action, event.context, outbound).await
+		match event.action.as_str() {
+			audio::ACTION => audio::appear(event.context, outbound).await,
+			system_monitor::ACTION => system_monitor::appear(event.context, outbound).await,
+			_ => Ok(()),
+		}
+	}
+
+	async fn will_disappear(
+		&self,
+		event: AppearEvent,
+		_outbound: &mut openaction::OutboundEventManager,
+	) -> EventHandlerResult {
+		match event.action.as_str() {
+			audio::ACTION => audio::disappear(&event.context),
+			system_monitor::ACTION => system_monitor::disappear(&event.context),
+			_ => {}
+		}
+		Ok(())
 	}
 
 	async fn did_receive_settings(
@@ -141,7 +161,11 @@ impl openaction::ActionEventHandler for ActionEventHandler {
 		event: DidReceiveSettingsEvent,
 		outbound: &mut openaction::OutboundEventManager,
 	) -> EventHandlerResult {
-		audio::refresh(&event.action, event.context, outbound).await
+		if event.action == audio::ACTION {
+			audio::refresh(event.context, outbound).await
+		} else {
+			Ok(())
+		}
 	}
 }
 

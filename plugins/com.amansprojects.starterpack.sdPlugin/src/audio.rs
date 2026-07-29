@@ -1,24 +1,39 @@
 use openaction::*;
 use std::{
 	collections::HashMap,
-	fmt::Write,
-	sync::{LazyLock, Mutex},
+	sync::{
+		Arc, LazyLock, Mutex,
+		atomic::{AtomicBool, Ordering},
+	},
 	time::{Duration, Instant},
 };
-use ttf_parser::OutlineBuilder;
 
-const SYSTEM_VOLUME_ACTION: &str = "com.amansprojects.starterpack.systemvolume";
+use crate::{
+	live::{self, LiveAction},
+	pixel::{data_uri, text_path, text_width},
+};
+
+pub const ACTION: &str = "com.amansprojects.starterpack.systemvolume";
 const DOUBLE_PRESS: Duration = Duration::from_secs(1);
+const ANIMATION_INTERVAL: Duration = Duration::from_millis(120);
 static LAST_PRESSES: LazyLock<Mutex<HashMap<String, Instant>>> = LazyLock::new(Default::default);
-static PIXELOID: LazyLock<ttf_parser::Face<'static>> = LazyLock::new(|| {
-	ttf_parser::Face::parse(include_bytes!("../assets/fonts/PixeloidSans.ttf"), 0).unwrap()
-});
+static LIVE: LazyLock<Mutex<LiveAction>> = LazyLock::new(Default::default);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 struct AudioSnapshot {
 	device_name: String,
 	volume: u8,
 	muted: bool,
+	peak: u8,
+}
+
+impl AudioSnapshot {
+	fn same_frame(&self, other: &Self) -> bool {
+		self.device_name == other.device_name
+			&& self.volume == other.volume
+			&& self.muted == other.muted
+			&& peak_level(self) == peak_level(other)
+	}
 }
 
 fn setting_u8(settings: &SettingsValue, key: &str, fallback: u8) -> u8 {
@@ -63,93 +78,6 @@ fn truncate_label(value: &str, max_chars: usize) -> String {
 	result
 }
 
-fn percent_encode(value: &str) -> String {
-	let mut encoded = String::with_capacity(value.len() * 2);
-	for byte in value.bytes() {
-		if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~') {
-			encoded.push(byte as char);
-		} else {
-			let _ = write!(encoded, "%{byte:02X}");
-		}
-	}
-	encoded
-}
-
-struct GlyphPath {
-	data: String,
-	x: f32,
-}
-
-impl OutlineBuilder for GlyphPath {
-	fn move_to(&mut self, x: f32, y: f32) {
-		let _ = write!(self.data, "M{} {}", (x + self.x) as i32, y as i32);
-	}
-	fn line_to(&mut self, x: f32, y: f32) {
-		let _ = write!(self.data, "L{} {}", (x + self.x) as i32, y as i32);
-	}
-	fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
-		let _ = write!(
-			self.data,
-			"Q{} {} {} {}",
-			(x1 + self.x) as i32,
-			y1 as i32,
-			(x + self.x) as i32,
-			y as i32
-		);
-	}
-	fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
-		let _ = write!(
-			self.data,
-			"C{} {} {} {} {} {}",
-			(x1 + self.x) as i32,
-			y1 as i32,
-			(x2 + self.x) as i32,
-			y2 as i32,
-			(x + self.x) as i32,
-			y as i32
-		);
-	}
-	fn close(&mut self) {
-		self.data.push('Z');
-	}
-}
-
-fn text_path(text: &str, center: f32, baseline: u8, size: u8, fill: &str) -> String {
-	let face = &*PIXELOID;
-	let scale = f32::from(size) / f32::from(face.units_per_em());
-	let mut path = GlyphPath {
-		data: String::with_capacity(text.len() * 80),
-		x: 0.0,
-	};
-	for character in text.chars() {
-		if let Some(glyph) = face
-			.glyph_index(character)
-			.or_else(|| face.glyph_index('?'))
-		{
-			face.outline_glyph(glyph, &mut path);
-			path.x += f32::from(face.glyph_hor_advance(glyph).unwrap_or_default());
-		}
-	}
-	let x = center - path.x * scale / 2.0;
-	format!(
-		r##"<path d="{}" transform="translate({x:.2} {baseline}) scale({scale:.5} -{scale:.5})" fill="{fill}"/>"##,
-		path.data
-	)
-}
-
-fn text_width(text: &str, size: u8) -> f32 {
-	let face = &*PIXELOID;
-	let advance = text
-		.chars()
-		.filter_map(|character| {
-			face.glyph_index(character)
-				.or_else(|| face.glyph_index('?'))
-		})
-		.map(|glyph| f32::from(face.glyph_hor_advance(glyph).unwrap_or_default()))
-		.sum::<f32>();
-	advance * f32::from(size) / f32::from(face.units_per_em())
-}
-
 fn centered_status_layout(status: &str) -> (f32, f32) {
 	const IMAGE_CENTER: f32 = 88.0;
 	const SPEAKER_LEFT: f32 = 10.0;
@@ -184,18 +112,37 @@ fn snapshot_image(snapshot: &AudioSnapshot, event: &str) -> String {
 	let (speaker_offset, status_center) = centered_status_layout(&status);
 	let status_path = text_path(&status, status_center, 62, 29, accent);
 	let device_path = text_path(&device_name, 88.0, 102, 10, "#a7b0c0");
-	let speaker_waves = if snapshot.muted {
-		r##"<path d="M34 42h5v5h5v5h-5v5h-5v-5h-5v-5h5z" fill="#ff3155"/>"##
+	let level = peak_level(snapshot);
+	let (speaker_nudge, speaker_waves) = if snapshot.muted {
+		(
+			0,
+			r##"<path d="M34 42h5v5h5v5h-5v5h-5v-5h-5v-5h5z" fill="#ff3155"/>"##,
+		)
 	} else {
-		r##"<path d="M32 42h5v5h4v10h-4v5h-5v-5h4V47h-4zM42 37h5v5h4v20h-4v5h-5v-5h4V42h-4z" fill="#f8fafc"/>"##
+		match level {
+			0 => (0, ""),
+			1 => (
+				1,
+				r##"<path d="M32 44h5v5h4v6h-4v5h-5v-5h4v-6h-4z" fill="#20e3ff"/>"##,
+			),
+			2 => (
+				-1,
+				r##"<path d="M32 42h5v5h4v10h-4v5h-5v-5h4V47h-4zM42 39h5v5h4v16h-4v5h-5v-5h4V44h-4z" fill="#20e3ff"/>"##,
+			),
+			_ => (
+				2,
+				r##"<path d="M32 42h5v5h4v10h-4v5h-5v-5h4V47h-4zM42 37h5v5h4v20h-4v5h-5v-5h4V42h-4zM52 32h5v5h4v30h-4v5h-5v-5h4V37h-4z" fill="#20e3ff"/>"##,
+			),
+		}
 	};
 	let switch_indicator = device_switch_indicator(event);
+	let speaker_x = speaker_offset + speaker_nudge as f32;
 
 	let svg = format!(
 		r##"<svg xmlns="http://www.w3.org/2000/svg" width="176" height="112" viewBox="0 0 176 112" shape-rendering="crispEdges">
 <rect width="176" height="112" fill="#000"/>
 <g transform="translate(0 -13)">
-<g transform="translate({speaker_offset:.2} 0)">
+<g transform="translate({speaker_x:.2} 0)">
 <path d="M10 45h9v14h-9zM19 41h5v22h-5zM24 36h5v32h-5z" fill="#f8fafc"/>
 {speaker_waves}
 </g>
@@ -209,7 +156,19 @@ fn snapshot_image(snapshot: &AudioSnapshot, event: &str) -> String {
 </svg>"##
 	);
 
-	format!("data:image/svg+xml,{}", percent_encode(&svg))
+	data_uri(&svg)
+}
+
+fn peak_level(snapshot: &AudioSnapshot) -> u8 {
+	if snapshot.muted || snapshot.peak < 2 {
+		0
+	} else if snapshot.peak < 20 {
+		1
+	} else if snapshot.peak < 55 {
+		2
+	} else {
+		3
+	}
 }
 
 async fn render_snapshot(
@@ -234,6 +193,18 @@ async fn report_error(
 	Err(error)
 }
 
+async fn render_result(
+	context: String,
+	result: anyhow::Result<AudioSnapshot>,
+	event: &str,
+	outbound: &mut OutboundEventManager,
+) -> EventHandlerResult {
+	match result {
+		Ok(snapshot) => render_snapshot(context, snapshot, event, outbound).await,
+		Err(error) => report_error(context, error, outbound).await,
+	}
+}
+
 pub async fn rotate_volume(
 	event: DialRotateEvent,
 	outbound: &mut OutboundEventManager,
@@ -241,10 +212,7 @@ pub async fn rotate_volume(
 	let context = event.context.clone();
 	let step = setting_u8(&event.payload.settings, "step", 2).clamp(1, 20);
 	let delta = i32::from(event.payload.ticks) * i32::from(step);
-	match platform::change_volume(delta) {
-		Ok(snapshot) => render_snapshot(context, snapshot, "", outbound).await,
-		Err(error) => report_error(context, error, outbound).await,
-	}
+	render_result(context, platform::change_volume(delta), "", outbound).await
 }
 
 pub async fn press_device(
@@ -263,32 +231,62 @@ pub async fn press_device(
 		double
 	};
 	let direction = if double { -2 } else { 1 };
-	match platform::switch_device(direction) {
-		Ok(snapshot) => {
-			render_snapshot(
-				context,
-				snapshot,
-				if double { "PREV" } else { "NEXT" },
-				outbound,
-			)
-			.await
+	let indicator = if double { "PREV" } else { "NEXT" };
+	render_result(
+		context,
+		platform::switch_device(direction),
+		indicator,
+		outbound,
+	)
+	.await
+}
+
+pub async fn refresh(context: String, outbound: &mut OutboundEventManager) -> EventHandlerResult {
+	render_result(context, platform::snapshot(), "", outbound).await
+}
+
+async fn animate(cancel: Arc<AtomicBool>, mut previous: AudioSnapshot) {
+	let start = tokio::time::Instant::now() + ANIMATION_INTERVAL;
+	let mut interval = tokio::time::interval_at(start, ANIMATION_INTERVAL);
+	interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+	while !cancel.load(Ordering::Acquire) {
+		interval.tick().await;
+		let snapshot = match platform::snapshot() {
+			Ok(snapshot) => snapshot,
+			Err(error) => {
+				log::debug!("Audio peak refresh failed: {error:#}");
+				continue;
+			}
+		};
+		if previous.same_frame(&snapshot) {
+			continue;
 		}
-		Err(error) => report_error(context, error, outbound).await,
+		let image = snapshot_image(&snapshot, "");
+		previous = snapshot;
+		if let Err(error) = live::broadcast(&LIVE, image).await {
+			log::warn!("Audio animation image update failed: {error}");
+			break;
+		}
 	}
 }
 
-pub async fn refresh(
-	action: &str,
-	context: String,
-	outbound: &mut OutboundEventManager,
-) -> EventHandlerResult {
-	if action != SYSTEM_VOLUME_ACTION {
-		return Ok(());
+pub async fn appear(context: String, outbound: &mut OutboundEventManager) -> EventHandlerResult {
+	let initial = match platform::snapshot() {
+		Ok(snapshot) => snapshot,
+		Err(error) => return report_error(context, error, outbound).await,
+	};
+	render_snapshot(context.clone(), initial.clone(), "", outbound).await?;
+
+	let mut live = LIVE.lock().unwrap();
+	if live.subscribe(context) {
+		let cancel = Arc::new(AtomicBool::new(false));
+		live.start(tokio::spawn(animate(cancel.clone(), initial)), cancel);
 	}
-	match platform::snapshot() {
-		Ok(snapshot) => render_snapshot(context, snapshot, "", outbound).await,
-		Err(error) => report_error(context, error, outbound).await,
-	}
+	Ok(())
+}
+
+pub fn disappear(context: &str) {
+	LIVE.lock().unwrap().unsubscribe(context);
 }
 
 #[cfg(windows)]
@@ -299,7 +297,7 @@ mod platform {
 	use com_policy_config::{IPolicyConfig, PolicyConfigClient};
 	use windows::Win32::Devices::FunctionDiscovery::PKEY_Device_FriendlyName;
 	use windows::Win32::Foundation::RPC_E_CHANGED_MODE;
-	use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
+	use windows::Win32::Media::Audio::Endpoints::{IAudioEndpointVolume, IAudioMeterInformation};
 	use windows::Win32::Media::Audio::{
 		DEVICE_STATE_ACTIVE, IMMDevice, IMMDeviceEnumerator, MMDeviceEnumerator, eCommunications,
 		eConsole, eMultimedia, eRender,
@@ -391,10 +389,17 @@ mod platform {
 		let muted = unsafe { volume.GetMute() }
 			.context("failed to read the system mute state")?
 			.as_bool();
+		// SAFETY: IAudioMeterInformation is supported by active render endpoints.
+		let meter: IAudioMeterInformation = unsafe { device.Activate(CLSCTX_ALL, None) }
+			.context("failed to open the endpoint audio meter")?;
+		// SAFETY: The audio meter remains alive for this synchronous call.
+		let peak =
+			unsafe { meter.GetPeakValue() }.context("failed to read the output audio peak")?;
 		Ok(AudioSnapshot {
 			device_name: name,
 			volume: (scalar.clamp(0.0, 1.0) * 100.0).round() as u8,
 			muted,
+			peak: (peak.clamp(0.0, 1.0) * 100.0).round() as u8,
 		})
 	}
 
@@ -427,29 +432,33 @@ mod platform {
 		Ok(endpoints)
 	}
 
-	pub fn snapshot() -> Result<AudioSnapshot> {
+	fn with_default<T>(action: impl FnOnce(Endpoint) -> Result<T>) -> Result<T> {
 		let _apartment = ComApartment::enter()?;
-		let endpoint = default_endpoint(&enumerator()?)?;
-		endpoint_snapshot(&endpoint.device, endpoint.name)
+		action(default_endpoint(&enumerator()?)?)
+	}
+
+	pub fn snapshot() -> Result<AudioSnapshot> {
+		with_default(|endpoint| endpoint_snapshot(&endpoint.device, endpoint.name))
 	}
 
 	pub fn change_volume(delta: i32) -> Result<AudioSnapshot> {
-		let _apartment = ComApartment::enter()?;
-		let endpoint = default_endpoint(&enumerator()?)?;
-		// SAFETY: IAudioEndpointVolume is supported by active render endpoints.
-		let volume: IAudioEndpointVolume = unsafe { endpoint.device.Activate(CLSCTX_ALL, None) }
-			.context("failed to open the endpoint volume control")?;
-		// SAFETY: The COM interface remains alive for all calls.
-		let current = unsafe { volume.GetMasterVolumeLevelScalar() }?;
-		let next = (current + delta as f32 / 100.0).clamp(0.0, 1.0);
-		// SAFETY: A null event context is explicitly supported by the Core Audio API.
-		unsafe {
-			volume.SetMasterVolumeLevelScalar(next, std::ptr::null())?;
-			if delta != 0 {
-				volume.SetMute(false, std::ptr::null())?;
+		with_default(|endpoint| {
+			// SAFETY: IAudioEndpointVolume is supported by active render endpoints.
+			let volume: IAudioEndpointVolume =
+				unsafe { endpoint.device.Activate(CLSCTX_ALL, None) }
+					.context("failed to open the endpoint volume control")?;
+			// SAFETY: The COM interface remains alive for all calls.
+			let current = unsafe { volume.GetMasterVolumeLevelScalar() }?;
+			let next = (current + delta as f32 / 100.0).clamp(0.0, 1.0);
+			// SAFETY: A null event context is explicitly supported by the Core Audio API.
+			unsafe {
+				volume.SetMasterVolumeLevelScalar(next, std::ptr::null())?;
+				if delta != 0 {
+					volume.SetMute(false, std::ptr::null())?;
+				}
 			}
-		}
-		endpoint_snapshot(&endpoint.device, endpoint.name)
+			endpoint_snapshot(&endpoint.device, endpoint.name)
+		})
 	}
 
 	pub fn switch_device(direction: i32) -> Result<AudioSnapshot> {
@@ -538,6 +547,7 @@ mod tests {
 				device_name: "Speakers (Realtek Audio)".to_owned(),
 				volume: 67,
 				muted: false,
+				peak: 60,
 			},
 			"",
 		);
@@ -572,6 +582,7 @@ mod tests {
 				device_name: "Output".to_owned(),
 				volume: 50,
 				muted: true,
+				peak: 80,
 			},
 			"",
 		);
@@ -580,6 +591,7 @@ mod tests {
 				device_name: "Output".to_owned(),
 				volume: 50,
 				muted: false,
+				peak: 80,
 			},
 			"NEXT",
 		);
@@ -591,6 +603,32 @@ mod tests {
 		assert!(switched.contains("%23000"));
 		assert!(!switched.contains("linearGradient"));
 		assert!(!switched.contains("rx%3D"));
+	}
+
+	#[test]
+	fn real_audio_peak_changes_the_pixel_speaker_frame() {
+		let quiet = snapshot_image(
+			&AudioSnapshot {
+				device_name: "Output".to_owned(),
+				volume: 50,
+				muted: false,
+				peak: 0,
+			},
+			"",
+		);
+		let loud = snapshot_image(
+			&AudioSnapshot {
+				device_name: "Output".to_owned(),
+				volume: 50,
+				muted: false,
+				peak: 90,
+			},
+			"",
+		);
+
+		assert_ne!(quiet, loud);
+		assert!(!quiet.contains("M52%2032"));
+		assert!(loud.contains("M52%2032"));
 	}
 
 	#[cfg(windows)]
