@@ -138,7 +138,9 @@ impl openaction::ActionEventHandler for ActionEventHandler {
 	) -> EventHandlerResult {
 		match event.action.as_str() {
 			audio::ACTION => audio::appear(event.context, outbound).await,
-			system_monitor::ACTION => system_monitor::appear(event.context, outbound).await,
+			system_monitor::ACTION => {
+				system_monitor::appear(event.context, event.payload.settings, outbound).await
+			}
 			_ => Ok(()),
 		}
 	}
@@ -161,10 +163,12 @@ impl openaction::ActionEventHandler for ActionEventHandler {
 		event: DidReceiveSettingsEvent,
 		outbound: &mut openaction::OutboundEventManager,
 	) -> EventHandlerResult {
-		if event.action == audio::ACTION {
-			audio::refresh(event.context, outbound).await
-		} else {
-			Ok(())
+		match event.action.as_str() {
+			audio::ACTION => audio::refresh(event.context, outbound).await,
+			system_monitor::ACTION => {
+				system_monitor::refresh(event.context, event.payload.settings, outbound).await
+			}
+			_ => Ok(()),
 		}
 	}
 }

@@ -49,6 +49,13 @@ impl Drop for LiveAction {
 }
 
 pub async fn broadcast(live: &'static Mutex<LiveAction>, image: String) -> EventHandlerResult {
+	broadcast_mapped(live, |_| image.clone()).await
+}
+
+pub async fn broadcast_mapped(
+	live: &'static Mutex<LiveAction>,
+	mut image_for: impl FnMut(&str) -> String,
+) -> EventHandlerResult {
 	let contexts: Vec<_> = live.lock().unwrap().contexts.iter().cloned().collect();
 	if contexts.is_empty() {
 		return Ok(());
@@ -58,7 +65,7 @@ pub async fn broadcast(live: &'static Mutex<LiveAction>, image: String) -> Event
 	if let Some(outbound) = manager.as_mut() {
 		for context in contexts {
 			outbound
-				.set_image(context, Some(image.clone()), None)
+				.set_image(context.clone(), Some(image_for(&context)), None)
 				.await?;
 		}
 	}

@@ -16,6 +16,7 @@ tokio = { version = "1.45", features = ["full"] }
 os_pipe = "1.2"
 anyhow = "1.0"
 ttf-parser = "0.25"
+plotters = { version = "0.3.7", default-features = false, features = ["svg_backend", "line_series"] }
 
 [target.'cfg(windows)'.dependencies]
 com-policy-config = "0.6"

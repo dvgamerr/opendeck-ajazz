@@ -3,31 +3,50 @@
 	<head>
 		<meta charset="utf-8" />
 		<script>
-			function connectElgatoStreamDeckSocket(port, uuid, registerEvent) {
+			let save = () => {};
+
+			function connectElgatoStreamDeckSocket(port, uuid, registerEvent, info, actionInfo) {
 				const socket = new WebSocket("ws://localhost:" + port);
+				const action = JSON.parse(actionInfo);
+				const mode = document.getElementById("mode");
+				const savedMode = action.payload.settings.mode ?? "normal";
+				mode.value = savedMode === "mini" ? "compact" : savedMode === "medium" ? "normal" : savedMode;
 				socket.onopen = () => socket.send(JSON.stringify({ event: registerEvent, uuid }));
+				save = () =>
+					socket.send(
+						JSON.stringify({
+							event: "setSettings",
+							context: action.context,
+							payload: { mode: mode.value },
+						}),
+					);
 			}
 		</script>
 	</head>
-	<body class="bg-base-200 text-base-content">
-		<section class="card bg-base-100">
+	<body class="inspector-page bg-base-200 text-base-content">
+		<section class="inspector-panel card bg-base-100">
 			<div class="card-body">
-				<header>
+				<header class="inspector-header">
 					<h1 class="card-title">System Monitor</h1>
-					<span class="badge badge-neutral">Realtime encoder</span>
+					<span class="badge badge-neutral">Realtime display</span>
 				</header>
-				<div class="stats stats-vertical">
-					<div class="stat">
-						<div class="stat-title">CPU</div>
-						<div class="stat-value text-info">LIVE</div>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Display mode</legend>
+					<select id="mode" class="select w-full" onchange="save()">
+						<option value="compact">Compact — values only</option>
+						<option value="normal">Normal — segmented meters</option>
+						<option value="full">Full — details + history graph</option>
+					</select>
+				</fieldset>
+				<div class="inspector-options">
+					<div>
+						<span><strong>Compact</strong><br />CPU, GPU, and used memory in two compact rows.</span>
 					</div>
-					<div class="stat">
-						<div class="stat-title">GPU</div>
-						<div class="stat-value text-secondary">LIVE</div>
+					<div>
+						<span><strong>Normal</strong><br />The original three colored segmented meters.</span>
 					</div>
-					<div class="stat">
-						<div class="stat-title">Memory</div>
-						<div class="stat-value text-warning">LIVE</div>
+					<div>
+						<span><strong>Full</strong><br />Live percentages, history lines, RAM, free memory, and page file.</span>
 					</div>
 				</div>
 				<div role="alert" class="alert">
