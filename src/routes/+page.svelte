@@ -5,6 +5,7 @@
 	import { initPortBase } from "$lib/ports";
 	import { inspectedInstance, inspectedParentAction } from "$lib/propertyInspector";
 	import { actionList, deviceSelector, profileManager } from "$lib/singletons";
+	import { completeStartupTask, showStartupTask } from "$lib/startup";
 
 	import ActionList from "../components/ActionList.svelte";
 	import DeviceSelector from "../components/DeviceSelector.svelte";
@@ -24,7 +25,10 @@
 	$: activeDevice = devices[selectedDevice];
 	$: activeProfile = selectedProfiles[selectedDevice];
 
-	initPortBase();
+	showStartupTask("services");
+	void initPortBase()
+		.catch((error) => console.error("Unable to prepare application services:", error))
+		.finally(() => completeStartupTask("services"));
 </script>
 
 <svelte:window on:contextmenu|preventDefault on:dragover={(event) => event.preventDefault()} on:drop={(event) => event.preventDefault()} />

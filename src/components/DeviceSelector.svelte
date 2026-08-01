@@ -3,6 +3,7 @@
 	import type { Profile } from "$lib/Profile";
 
 	import { profileManager } from "$lib/singletons";
+	import { completeStartupTask, showStartupTask } from "$lib/startup";
 
 	import { invoke } from "@tauri-apps/api/core";
 	import { listen, type UnlistenFn } from "@tauri-apps/api/event";
@@ -64,9 +65,13 @@
 			void promise.then((unlisten) => (disposed ? unlisten() : unlisteners.push(unlisten)));
 		};
 
-		void invoke<{ [id: string]: DeviceInfo }>("get_devices").then((current) => {
-			if (!disposed) devices = current;
-		});
+		showStartupTask("devices");
+		void invoke<{ [id: string]: DeviceInfo }>("get_devices")
+			.then((current) => {
+				if (!disposed) devices = current;
+			})
+			.catch((error) => console.error("Unable to detect connected devices:", error))
+			.finally(() => completeStartupTask("devices"));
 		keep(
 			listen("devices", ({ payload }: { payload: { [id: string]: DeviceInfo } }) => {
 				devices = payload;

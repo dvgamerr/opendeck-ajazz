@@ -4,9 +4,112 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<link rel="icon" href="/favicon.ico" />
+		<style>
+			#startup-loader {
+				--startup-surface: #15181e;
+				--startup-border: rgb(255 255 255 / 10%);
+				--startup-muted: rgb(237 240 244 / 62%);
+				--startup-accent: #70a5ff;
+				position: fixed;
+				z-index: 2147483647;
+				inset: 0;
+				display: grid;
+				place-items: center;
+				overflow: hidden;
+				background: var(--startup-surface);
+				color: #f7fafc;
+				font-family: "Segoe UI Variable Text", "Segoe UI", Inter, ui-sans-serif, system-ui, sans-serif;
+				opacity: 1;
+				transition:
+					opacity 180ms ease,
+					visibility 180ms ease;
+			}
+
+			#startup-loader.startup-loader--leaving {
+				visibility: hidden;
+				opacity: 0;
+			}
+
+			.startup-loader__content {
+				display: flex;
+				width: min(24rem, calc(100vw - 3rem));
+				flex-direction: column;
+				align-items: center;
+				text-align: center;
+			}
+
+			.startup-loader__image {
+				width: clamp(6rem, 16vw, 8rem);
+				aspect-ratio: 1;
+				border: 1px solid var(--startup-border);
+				border-radius: 1rem;
+				box-shadow: 0 16px 40px rgb(0 0 0 / 28%);
+			}
+
+			.startup-loader__title {
+				margin-top: 1rem;
+				font-size: 1.125rem;
+				font-weight: 650;
+				letter-spacing: -0.01em;
+			}
+
+			#startup-status-text {
+				min-height: 1.25rem;
+				margin-top: 0.5rem;
+				color: var(--startup-muted);
+				font-size: 0.8125rem;
+				line-height: 1.5;
+			}
+
+			.startup-loader__progress {
+				width: min(14rem, 62vw);
+				height: 0.1875rem;
+				margin-top: 1rem;
+				overflow: hidden;
+				border-radius: 999px;
+				background: var(--startup-border);
+			}
+
+			.startup-loader__progress::after {
+				display: block;
+				width: 45%;
+				height: 100%;
+				border-radius: inherit;
+				background: var(--startup-accent);
+				animation: startup-progress 1.15s ease-in-out infinite;
+				content: "";
+			}
+
+			@keyframes startup-progress {
+				from {
+					transform: translateX(-110%);
+				}
+				to {
+					transform: translateX(335%);
+				}
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				#startup-loader {
+					transition: none;
+				}
+
+				.startup-loader__progress::after {
+					animation-duration: 2.5s;
+				}
+			}
+		</style>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
+		<div id="startup-loader" role="status" aria-live="polite" aria-label="Pixeldeck Ajazz is starting">
+			<div class="startup-loader__content">
+				<img class="startup-loader__image" src="/app-icon.svg" alt="" />
+				<div class="startup-loader__title">Pixeldeck Ajazz</div>
+				<div id="startup-status-text">Preparing application services…</div>
+				<div class="startup-loader__progress" aria-hidden="true"></div>
+			</div>
+		</div>
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
 </html>

@@ -7,6 +7,7 @@
 	import { openContextMenu } from "$lib/propertyInspector";
 	import { localisations } from "$lib/settings";
 	import { PRODUCT_NAME } from "$lib/singletons";
+	import { completeStartupTask, showStartupTask } from "$lib/startup";
 
 	import { invoke } from "@tauri-apps/api/core";
 
@@ -16,7 +17,10 @@
 		categories = await invoke("get_categories");
 		plugins = await invoke("list_plugins");
 	}
-	reload();
+	showStartupTask("actions");
+	void reload()
+		.catch((error) => console.error("Unable to load actions and plugins:", error))
+		.finally(() => completeStartupTask("actions"));
 
 	let query: string = "";
 	let controller: "Keypad" | "Encoder" = "Keypad";

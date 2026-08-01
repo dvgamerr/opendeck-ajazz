@@ -17,14 +17,17 @@ use events::frontend;
 use shared::PRODUCT_NAME;
 
 use once_cell::sync::OnceCell;
+use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use tauri::{
 	AppHandle, Builder, Manager, WindowEvent,
 	menu::{IconMenuItemBuilder, MenuBuilder, MenuItemBuilder, PredefinedMenuItem},
 	tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+	webview::PageLoadEvent,
 };
 use tauri_plugin_log::{Target, TargetKind};
 
 static APP_HANDLE: OnceCell<AppHandle> = OnceCell::new();
+static MAIN_WINDOW_SHOWN: AtomicBool = AtomicBool::new(false);
 
 fn show_window(app: &AppHandle) -> Result<(), tauri::Error> {
 	#[cfg(target_os = "macos")]
@@ -119,10 +122,6 @@ async fn main() {
 		.setup(|app| {
 			APP_HANDLE.set(app.handle().clone()).unwrap();
 
-			#[cfg(windows)]
-			if !std::env::args().any(|v| v == "--hide") {
-				let _ = app.get_webview_window("main").unwrap().show();
-			}
 			#[cfg(not(windows))]
 			if std::env::args().any(|v| v == "--hide") {
 				let _ = hide_window(app.handle());
@@ -287,6 +286,20 @@ If you have already donated, thank you so much for your support!"#,
 			}
 
 			Ok(())
+		})
+		.on_page_load(|webview, payload| {
+			if webview.label() == "main"
+				&& matches!(payload.event(), PageLoadEvent::Finished)
+				&& !std::env::args().any(|value| value == "--hide")
+				&& !MAIN_WINDOW_SHOWN.swap(true, AtomicOrdering::SeqCst)
+			{
+				let window = webview.window();
+				tauri::async_runtime::spawn(async move {
+					tokio::time::sleep(std::time::Duration::from_millis(80)).await;
+					let _ = window.show();
+					let _ = window.set_focus();
+				});
+			}
 		})
 		.plugin(
 			tauri_plugin_log::Builder::default()
