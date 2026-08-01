@@ -197,7 +197,7 @@
 ></canvas>
 
 {#if $openContextMenu && $openContextMenu?.context == context}
-	<ul use:portalToBody class="menu fixed z-[1000] w-36 rounded-box border border-base-300 bg-base-100 p-1 text-sm shadow-xl" style={`left: ${$openContextMenu.x}px; top: ${$openContextMenu.y}px;`}>
+	<ul use:portalToBody class="menu fixed z-[1000] w-36 rounded-box border border-base-300 bg-base-100 p-1 shadow-lg" style={`left: ${$openContextMenu.x}px; top: ${$openContextMenu.y}px;`}>
 		{#if !slot}
 			<li>
 				<button type="button" on:click={paste}>

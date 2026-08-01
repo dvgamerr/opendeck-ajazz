@@ -171,16 +171,16 @@
 />
 
 <Popup show={showPopup} fullscreen onClose={() => (showPopup = false)}>
-	<header class="flex items-center border-b border-base-300 pb-4">
+	<header class="flex items-center border-b border-base-300 pb-3">
 		<div>
-			<p class="text-xs font-semibold tracking-widest text-base-content/50">OPENDECK</p>
-			<h2 class="text-2xl font-semibold">Manage plugins</h2>
+			<p class="ui-eyebrow">OpenDeck</p>
+			<h2 class="ui-page-title">Manage plugins</h2>
 		</div>
 		<button type="button" class="btn btn-circle btn-ghost ml-auto" aria-label="Close plugin manager" on:click={() => (showPopup = false)}>✕</button>
 	</header>
 
-	<div class="mt-6 flex items-center gap-2">
-		<h3 class="text-lg font-semibold">Installed plugins</h3>
+	<div class="ui-section-heading mt-4">
+		<h3 class="ui-title">Installed plugins</h3>
 		<span class="badge badge-neutral badge-sm">{installed.length}</span>
 	</div>
 	<div class="mt-2 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
@@ -216,32 +216,32 @@
 		{/each}
 	</div>
 
-	<div class="mt-8 flex items-center justify-between gap-4">
-		<h3 class="text-lg font-semibold">Plugin store</h3>
+	<div class="ui-section-heading mt-6 justify-between">
+		<h3 class="ui-title">Plugin store</h3>
 		<button type="button" class="btn btn-sm" on:click={installPluginFile}>
 			<FileArrowUp />
 			Install from file
 		</button>
 	</div>
-	<label class="input input-bordered mt-3 w-full bg-base-200">
+	<label class="input input-bordered mt-2 w-full bg-base-200">
 		<MagnifyingGlass size="16" class="opacity-60" />
 		<input bind:value={query} class="grow" placeholder="Search plugins" type="search" spellcheck="false" />
 	</label>
 
-	<div role="alert" class="alert mt-6">
+	<div role="alert" class="alert mt-4">
 		<ArrowSquareOut size="20" />
 		<span>Need plugins from the Elgato Marketplace?</span>
 		<button type="button" on:click={() => invoke("open_url", { url: "https://github.com/nekename/OpenDeck/wiki/0.-Elgato-Marketplace" })} class="btn btn-sm"> View instructions </button>
 	</div>
 
 	{#if !plugins}
-		<div class="mt-6 space-y-2">
+		<div class="mt-4 space-y-2">
 			<div class="skeleton h-20 w-full"></div>
 			<div class="skeleton h-20 w-full"></div>
 		</div>
 	{:else}
-		<div class="mt-6 flex items-center gap-2">
-			<h3 class="font-semibold">Open-source plugins</h3>
+		<div class="ui-section-heading mt-4">
+			<h3 class="ui-label">Open-source plugins</h3>
 			<Tooltip>Open-source plugins downloaded from the author's releases.</Tooltip>
 		</div>
 		<div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
@@ -260,10 +260,10 @@
 	{/if}
 
 	{#await fetch("https://plugins.amankhanna.me/catalogue.json")}
-		<div class="skeleton mt-6 h-20 w-full"></div>
+		<div class="skeleton mt-4 h-20 w-full"></div>
 	{:then archiveRes}
-		<div class="mt-6 flex items-center gap-2">
-			<h3 class="font-semibold">Elgato App Store archive</h3>
+		<div class="ui-section-heading mt-4">
+			<h3 class="ui-label">Elgato App Store archive</h3>
 			<Tooltip>Plugins archived from the Elgato App Store (now replaced by the Elgato Marketplace).</Tooltip>
 		</div>
 		{#await archiveRes.json() then entries}
@@ -299,8 +299,8 @@
 {#if choices}
 	<div class="modal modal-open z-[300]">
 		<div class="modal-box w-96 border border-base-300">
-			<h3 class="text-lg font-semibold">Choose a release asset</h3>
-			<select class="select select-bordered mt-4 w-full" bind:value={choice}>
+			<h3 class="ui-title">Choose a release asset</h3>
+			<select class="select select-bordered mt-3 w-full" bind:value={choice}>
 				{#each choices as choice, i}
 					<option value={i}>{choice.name}</option>
 				{/each}

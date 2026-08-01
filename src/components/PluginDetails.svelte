@@ -65,12 +65,12 @@
 		<button type="button" class="btn btn-circle btn-ghost" aria-label="Close plugin details" on:click={close}>✕</button>
 	</header>
 	<section class="card card-side border border-base-300 bg-base-200">
-		<figure class="shrink-0 p-6">
-			<img src={"https://openactionapi.github.io/plugins/icons/" + id + ".png"} alt={details.name} class="size-40 rounded-box object-cover shadow-lg" />
+		<figure class="shrink-0 p-4">
+			<img src={"https://openactionapi.github.io/plugins/icons/" + id + ".png"} alt={details.name} class="size-32 rounded-box object-cover" />
 		</figure>
 		<div class="card-body justify-center">
-			<h2 class="card-title text-3xl">{details.name}</h2>
-			<div class="flex items-center gap-2 text-base-content/60">
+			<h2 class="ui-page-title">{details.name}</h2>
+			<div class="ui-muted flex items-center gap-2">
 				<span>by</span>
 				<img src={"https://avatars.githubusercontent.com/" + details.repository.split("/")[3]} alt="" class="avatar size-7 rounded-full" />
 				<a
@@ -87,7 +87,7 @@
 				</a>
 			</div>
 
-			<div class="card-actions mt-4 items-center">
+			<div class="card-actions mt-3 items-center">
 				<div class="join">
 					<button type="button" on:click={install} class="btn btn-primary join-item">Install</button>
 					<button
@@ -107,7 +107,7 @@
 		</div>
 	</section>
 
-	<article class="plugin-readme mt-4 rounded-box border border-base-300 bg-base-100 p-6">
+	<article class="plugin-readme mt-4 rounded-box border border-base-300 bg-base-100 p-4">
 		{@html readme}
 	</article>
 </Popup>

@@ -215,7 +215,7 @@
 	}
 </script>
 
-<select bind:value class="select select-sm my-1 w-full" aria-label="Profile">
+<select bind:value class="select select-sm w-full" aria-label="Profile">
 	{#each Object.entries(folders) as [id, profiles]}
 		{#if id && profiles.length}
 			<optgroup label={id}>
@@ -242,15 +242,15 @@
 />
 
 <Popup show={showPopup}>
-	<header class="mb-4 flex items-center">
+	<header class="mb-3 flex items-center">
 		<div>
-			<p class="text-xs font-semibold tracking-widest text-base-content/50">PROFILES</p>
-			<h2 class="text-xl font-semibold">{device.name}</h2>
+			<p class="ui-eyebrow">Profiles</p>
+			<h2 class="ui-page-title">{device.name}</h2>
 		</div>
 		<button type="button" class="btn btn-circle btn-ghost btn-sm ml-auto" aria-label="Close profile manager" on:click={() => (showPopup = false)}>✕</button>
 	</header>
 
-	<div class="join mb-4 flex w-full">
+	<div class="join mb-3 flex w-full">
 		<input
 			bind:this={nameInput}
 			pattern="[a-zA-Z0-9_ ]+(\/[a-zA-Z0-9_ ]+)?"
@@ -280,7 +280,7 @@
 	<div class="divide-y divide-base-300 rounded-box border border-base-300 bg-base-200 px-3">
 		{#each Object.entries(folders) as [id, profiles]}
 			{#if id && profiles.length}
-				<h4 class="py-2 text-sm font-bold uppercase tracking-wide text-base-content/55">{id}</h4>
+				<h4 class="ui-eyebrow py-2">{id}</h4>
 			{/if}
 			{#each profiles as profile}
 				<div class="flex items-center gap-3 py-2" class:ml-6={id} class:pl-2={id}>
@@ -302,16 +302,16 @@
 <Popup show={showApplicationManager}>
 	<header class="mb-3 flex items-center">
 		<div>
-			<p class="text-xs font-semibold tracking-widest text-base-content/50">APPLICATION MAPPING</p>
-			<h2 class="text-xl font-semibold">{device.name}</h2>
+			<p class="ui-eyebrow">Application mapping</p>
+			<h2 class="ui-page-title">{device.name}</h2>
 		</div>
 		<button type="button" class="btn btn-circle btn-ghost btn-sm ml-auto" aria-label="Close application mapping" on:click={() => (showApplicationManager = false)}>✕</button>
 	</header>
-	<div role="alert" class="alert mb-3 py-2 text-sm">
+	<div role="alert" class="alert mb-3">
 		<span>If an application is missing, switch to it and back. The previous profile is restored when a mapped application becomes inactive.</span>
 	</div>
 	{#if applicationProfilesError}
-		<div role="alert" class="alert alert-error mb-3 py-2 text-sm"><span>{applicationProfilesError}</span></div>
+		<div role="alert" class="alert alert-error mb-3"><span>{applicationProfilesError}</span></div>
 	{/if}
 
 	<div class="overflow-x-auto rounded-box border border-base-300">

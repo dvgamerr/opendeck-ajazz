@@ -100,10 +100,10 @@
 			const iframe = iframes[data.payload];
 			if (!iframe) return;
 			iframe.style.position = "absolute";
-			iframe.style.left = "36px";
-			iframe.style.top = "36px";
-			iframe.style.width = "calc(100% - 72px)";
-			iframe.style.height = "calc(100% - 72px)";
+			iframe.style.left = "24px";
+			iframe.style.top = "24px";
+			iframe.style.width = "calc(100% - 48px)";
+			iframe.style.height = "calc(100% - 48px)";
 			iframe.style.display = "block";
 
 			iframePopupsOpen.push(data.payload);
@@ -111,7 +111,7 @@
 			iframeContainer.style.position = "absolute";
 			iframeContainer.style.width = "100%";
 			iframeContainer.style.height = "100%";
-			iframeContainer.style.padding = "36px";
+			iframeContainer.style.padding = "24px";
 			iframeContainer.style.zIndex = "20";
 
 			iframeClosePopup.style.display = "block";

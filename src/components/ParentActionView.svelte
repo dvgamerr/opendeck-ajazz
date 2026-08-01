@@ -48,10 +48,10 @@
 	}}
 />
 
-<header class="flex items-center border-b border-base-300 px-6 py-4">
+<header class="flex items-center border-b border-base-300 px-4 py-3">
 	<div>
-		<p class="text-xs font-semibold tracking-widest text-base-content/50">ACTION FLOW</p>
-		<h1 class="text-2xl font-semibold">{parentUuid == "opendeck.toggleaction" ? "Toggle Action" : "Multi Action"}</h1>
+		<p class="ui-eyebrow">Action flow</p>
+		<h1 class="ui-page-title">{parentUuid == "opendeck.toggleaction" ? "Toggle Action" : "Multi Action"}</h1>
 	</div>
 	<button type="button" class="btn btn-circle btn-ghost ml-auto" aria-label="Close action flow" on:click={() => ($inspectedParentAction = null)}>✕</button>
 </header>
@@ -59,19 +59,19 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div class="flex h-80 flex-col gap-2 overflow-auto p-4" on:click={() => inspectedInstance.set(null)} on:keyup={() => inspectedInstance.set(null)}>
 	{#each children as instance, index}
-		<div class="card card-side flex-row items-center border border-base-300 bg-base-100 px-3 shadow-sm">
+		<div class="card card-side flex-row items-center border border-base-300 bg-base-100 px-3">
 			<Key inslot={instance} context={null} active={false} scale={3 / 4} />
-			<p class="ml-4 text-lg font-medium">{instance.action.name}</p>
+			<p class="ml-3 font-medium">{instance.action.name}</p>
 			<button type="button" class="btn btn-circle btn-ghost btn-sm ml-auto text-error" aria-label="Remove action" on:click={() => removeInstance(index)}>
 				<Trash size="20" />
 			</button>
 		</div>
 	{/each}
 	<div class="card flex-row items-center border-2 border-dashed border-base-300 bg-base-100 p-3" on:dragover={handleDragOver} on:drop={handleDrop}>
-		<img src="/cube.png" class="m-2 w-20 rounded-box" alt="" />
-		<div class="ml-4">
-			<p class="font-semibold">Drop actions here</p>
-			<p class="text-sm text-base-content/55">Drag an action from the library to add it to this flow.</p>
+		<img src="/cube.png" class="m-2 w-16 rounded-box" alt="" />
+		<div class="ml-3">
+			<p class="ui-label">Drop actions here</p>
+			<p class="ui-muted">Drag an action from the library to add it to this flow.</p>
 		</div>
 	</div>
 </div>

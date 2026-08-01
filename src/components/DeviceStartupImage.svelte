@@ -509,16 +509,16 @@
 
 <svelte:window on:pointermove={moveTransform} on:pointerup={endTransform} on:pointercancel={endTransform} />
 
-<div class="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4">
+<div class="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-3">
 	<input bind:this={fileInput} type="file" class="hidden" accept=".png,.jpg,.jpeg,.bmp,.svg,image/png,image/jpeg,image/bmp,image/svg+xml" multiple on:change={() => selectFiles(fileInput.files)} />
 
-	<header class="flex shrink-0 flex-wrap items-start gap-3">
+	<header class="flex shrink-0 flex-wrap items-start gap-2">
 		<div class="min-w-0">
 			<div class="flex items-center gap-2">
 				<Stack size="20" weight="bold" class="text-primary" />
-				<h3 class="text-lg font-semibold">Startup composition</h3>
+				<h3 class="ui-title">Startup composition</h3>
 			</div>
-			<p class="mt-1 text-sm text-base-content/55">Add multiple images, select a layer, then drag, resize, or rotate it on the device layout.</p>
+			<p class="ui-muted mt-1">Add multiple images, select a layer, then drag, resize, or rotate it on the device layout.</p>
 		</div>
 		<div class="ml-auto flex flex-wrap items-center justify-end gap-2">
 			{#if loading}
@@ -549,16 +549,16 @@
 	</header>
 
 	{#if errorMessage}
-		<div role="alert" class="alert alert-error shrink-0 py-2 text-sm">
+		<div role="alert" class="alert alert-error shrink-0">
 			<span>{errorMessage}</span>
 		</div>
 	{/if}
 
-	<div class="grid min-h-0 min-w-0 flex-1 grid-cols-[15rem_minmax(0,1fr)] overflow-hidden rounded-xl border border-base-300 bg-base-200">
+	<div class="grid min-h-0 min-w-0 flex-1 grid-cols-[15rem_minmax(0,1fr)] overflow-hidden rounded-box border border-base-300 bg-base-200">
 		<aside class="flex min-h-0 flex-col border-r border-base-300 bg-base-100/60">
-			<div class="flex shrink-0 items-center gap-2 border-b border-base-300 px-3 py-3">
+			<div class="flex shrink-0 items-center gap-2 border-b border-base-300 p-3">
 				<ImageSquare size="17" weight="bold" />
-				<h4 class="text-sm font-semibold">Images</h4>
+				<h4 class="ui-label">Images</h4>
 				<span class="badge badge-sm ml-auto">{layers.length}</span>
 			</div>
 
@@ -566,14 +566,14 @@
 				<div class="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
 					{#each [...layers].reverse() as layer (layer.id)}
 						{@const layerIndex = layers.findIndex((item) => item.id == layer.id)}
-						<div class={`group flex items-center gap-2 rounded-lg border p-2 transition-colors ${activeLayerId == layer.id ? "border-primary bg-primary/10" : "border-base-300 bg-base-100"}`}>
+						<div class={`group flex items-center gap-2 rounded-field border p-2 transition-colors ${activeLayerId == layer.id ? "border-primary bg-primary/10" : "border-base-300 bg-base-100"}`}>
 							<button type="button" class="flex min-w-0 flex-1 items-center gap-2 text-left" on:click={() => (activeLayerId = layer.id)}>
 								<span class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-base-300 bg-black">
 									<img src={layer.image} alt="" class="max-h-full max-w-full object-contain" />
 								</span>
 								<span class="min-w-0">
-									<span class="block truncate text-sm font-medium">{layer.name}</span>
-									<span class="block text-[11px] text-base-content/45">Layer {layerIndex + 1}</span>
+									<span class="ui-label block truncate">{layer.name}</span>
+									<span class="ui-caption ui-muted block">Layer {layerIndex + 1}</span>
 								</span>
 							</button>
 							<div class="flex shrink-0 flex-col">
@@ -597,16 +597,16 @@
 					{/each}
 				</div>
 			{:else if loading}
-				<div class="flex flex-1 items-center justify-center p-5">
+				<div class="flex flex-1 items-center justify-center p-4">
 					<span class="loading loading-spinner loading-md text-primary"></span>
 				</div>
 			{:else}
-				<div class="flex flex-1 flex-col items-center justify-center p-5 text-center">
+				<div class="flex flex-1 flex-col items-center justify-center p-4 text-center">
 					<div class="mb-3 flex size-12 items-center justify-center rounded-full bg-base-200">
 						<ImageSquare size="24" class="text-base-content/45" />
 					</div>
-					<p class="text-sm font-medium">No images added</p>
-					<p class="mt-1 text-xs text-base-content/50">Add one or more PNG, JPG, JPEG, BMP, or SVG files.</p>
+					<p class="ui-label">No images added</p>
+					<p class="ui-caption ui-muted mt-1">Add one or more PNG, JPG, JPEG, BMP, or SVG files.</p>
 					<button type="button" class="btn btn-primary btn-sm mt-4" on:click={openFilePicker}>
 						<Plus size="15" weight="bold" />
 						Add images
@@ -615,8 +615,8 @@
 			{/if}
 		</aside>
 
-		<section bind:this={previewPanel} class="relative flex min-h-0 min-w-0 items-center justify-center overflow-hidden p-4">
-			<div class="relative shrink-0 overflow-visible rounded-lg bg-black shadow-2xl" style={`width: ${previewDisplayWidth}px; aspect-ratio: ${previewFrameWidth} / ${previewFrameHeight};`}>
+		<section bind:this={previewPanel} class="relative flex min-h-0 min-w-0 items-center justify-center overflow-hidden p-3">
+			<div class="relative shrink-0 overflow-visible rounded-lg bg-black shadow-lg" style={`width: ${previewDisplayWidth}px; aspect-ratio: ${previewFrameWidth} / ${previewFrameHeight};`}>
 				<!-- svelte-ignore a11y-no-static-element-interactions -->
 				<div
 					bind:this={editorViewport}
@@ -689,8 +689,8 @@
 			</div>
 
 			{#if !loading && !layers.length}
-				<div class="pointer-events-none absolute inset-0 flex items-end justify-center pb-5">
-					<p class="rounded-full bg-base-100/85 px-3 py-1.5 text-xs text-base-content/55 shadow-sm backdrop-blur">The black frame represents the device canvas.</p>
+				<div class="pointer-events-none absolute inset-0 flex items-end justify-center pb-4">
+					<p class="ui-caption ui-muted rounded-full border border-base-300 bg-base-100/90 px-3 py-1.5 backdrop-blur">The black frame represents the device canvas.</p>
 				</div>
 			{/if}
 		</section>

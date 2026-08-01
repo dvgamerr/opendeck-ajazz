@@ -7,7 +7,7 @@
 		<button type="button" tabindex="0" class="btn btn-circle btn-ghost btn-xs text-base-content/55" aria-label="More information">
 			<Question size="18" />
 		</button>
-		<div role="tooltip" class="dropdown-content z-50 mt-1 w-80 rounded-box border border-base-300 bg-base-100 p-3 text-left text-xs font-normal text-base-content shadow-xl">
+		<div role="tooltip" class="dropdown-content ui-caption z-50 mt-1 w-80 rounded-box border border-base-300 bg-base-100 p-3 text-left font-normal text-base-content shadow-lg">
 			<slot />
 		</div>
 	</div>

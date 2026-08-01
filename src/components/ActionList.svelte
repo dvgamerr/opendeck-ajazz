@@ -53,7 +53,7 @@
 </script>
 
 <div class="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
-	<div class="shrink-0 space-y-3 border-b border-base-300 p-4">
+	<div class="ui-section-pad shrink-0 space-y-2 border-b border-base-300">
 		<label class="input input-sm w-full bg-base-200 focus-within:input-primary">
 			<MagnifyingGlass size="15" class="shrink-0 opacity-60" color="currentColor" />
 			<input bind:value={query} class="grow" placeholder="Search actions" type="search" spellcheck="false" />
@@ -70,11 +70,11 @@
 		</div>
 	</div>
 
-	<ul class="menu min-h-0 w-full flex-1 flex-nowrap overflow-x-hidden overflow-y-auto px-3 py-2 select-none">
+	<ul class="menu min-h-0 w-full flex-1 flex-nowrap overflow-x-hidden overflow-y-auto p-2 select-none">
 		{#each filteredCategories as [name, { icon, actions }]}
 			<li>
 				<details open>
-					<summary class="text-xs font-semibold">
+					<summary class="ui-label">
 						{#if icon || (actions[0] && plugins.find((x) => x.id == actions[0].plugin) && categories[name].actions.every((x) => x.plugin == actions[0].plugin))}
 							<img
 								src={icon ? (!icon.startsWith("opendeck/") ? getWebserverUrl(icon) : icon.replace("opendeck", "")) : getWebserverUrl(plugins.find((x) => x.id == actions[0].plugin).icon)}
@@ -89,7 +89,7 @@
 							<li>
 								<button
 									type="button"
-									class="cursor-grab gap-3 py-1.5 active:cursor-grabbing"
+									class="cursor-grab gap-2 py-1.5 active:cursor-grabbing"
 									draggable="true"
 									title={$localisations?.[action.plugin]?.[action.uuid]?.Tooltip ?? action.tooltip}
 									on:dragstart={(event) => handleActionDragStart(event, action)}
@@ -97,7 +97,7 @@
 									<img
 										src={!action.icon.startsWith("opendeck/") ? getWebserverUrl(action.icon) : action.icon.replace("opendeck", "")}
 										alt=""
-										class="pointer-events-none size-8 shrink-0 rounded-field object-cover"
+										class="pointer-events-none size-7 shrink-0 rounded-field object-cover"
 									/>
 									<span class="min-w-0 truncate">{$localisations?.[action.plugin]?.[action.uuid]?.Name ?? action.name}</span>
 								</button>

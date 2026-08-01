@@ -43,11 +43,11 @@
 <div use:portalToPreviewDock class="modal modal-open absolute inset-0 z-[120]">
 	<button type="button" class="modal-backdrop bg-black/60 backdrop-blur-sm" aria-label="Close key editor" on:click={() => (showEditor = false)}>Close</button>
 
-	<div class="modal-box z-10 h-[calc(100%-2rem)] w-[calc(100%-2rem)] max-w-none overflow-y-auto border border-base-300 p-5" role="dialog" aria-modal="true" aria-label="Edit key appearance">
-		<header class="mb-5 flex items-center border-b border-base-300 pb-4">
+	<div class="modal-box z-10 h-[calc(100%-2rem)] w-[calc(100%-2rem)] max-w-none overflow-y-auto border border-base-300 p-4" role="dialog" aria-modal="true" aria-label="Edit key appearance">
+		<header class="mb-4 flex items-center border-b border-base-300 pb-3">
 			<div>
-				<p class="text-xs font-semibold tracking-widest text-base-content/50">KEY APPEARANCE</p>
-				<h2 class="text-xl font-semibold">Customize state</h2>
+				<p class="ui-eyebrow">Key appearance</p>
+				<h2 class="ui-page-title">Customize state</h2>
 			</div>
 			<label class="form-control ml-auto w-48">
 				<span class="sr-only">State</span>
@@ -60,7 +60,7 @@
 			<button type="button" class="btn btn-circle btn-ghost ml-3" aria-label="Close key editor" on:click={() => (showEditor = false)}>✕</button>
 		</header>
 
-		<div class="grid gap-6 md:grid-cols-[10rem_minmax(0,1fr)]">
+		<div class="grid gap-4 md:grid-cols-[10rem_minmax(0,1fr)]">
 			<div class="card items-center border border-base-300 bg-base-200 p-4">
 				<button
 					type="button"
@@ -117,7 +117,7 @@
 				}}
 			/>
 
-			<div class="grid content-start gap-4 sm:grid-cols-2">
+			<div class="grid content-start gap-3 sm:grid-cols-2">
 				<label class="form-control sm:col-span-2">
 					<span class="label-text mb-1">Text</span>
 					<textarea bind:value={instance.states[state].text} rows="2" class="textarea textarea-bordered w-full resize-none"></textarea>

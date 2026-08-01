@@ -118,7 +118,7 @@
 		on:click={() => inspectedInstance.set(null)}
 		on:keyup={() => inspectedInstance.set(null)}
 	>
-		<div bind:this={chassis} class="device-chassis flex flex-col rounded-[2rem] border border-base-300 p-7 shadow-2xl" style={`--preview-scale: ${previewScale};`}>
+		<div bind:this={chassis} class="device-chassis flex flex-col rounded-[2rem] border border-base-300 p-6" style={`--preview-scale: ${previewScale};`}>
 			<div class="relative z-[1] flex flex-col">
 				{#each { length: device.rows } as _, r}
 					<div class="flex flex-row">
@@ -138,7 +138,7 @@
 			</div>
 
 			{#if device.type == 7}
-				<div class="touch-strip relative z-[1] mt-4 flex overflow-hidden rounded-xl border-[3px] border-neutral-700 bg-black shadow-inner">
+				<div class="touch-strip relative z-[1] mt-4 flex overflow-hidden rounded-lg border-[3px] border-neutral-700 bg-black shadow-inner">
 					{#each { length: device.encoders } as _, i}
 						<Key
 							context={{ device: device.id, profile: profile.id, controller: "Encoder", position: i }}
@@ -153,7 +153,7 @@
 						/>
 					{/each}
 				</div>
-				<div class="relative z-[1] mt-5 flex" aria-hidden="true">
+				<div class="relative z-[1] mt-4 flex" aria-hidden="true">
 					{#each { length: device.encoders } as _}
 						<div class="flex w-40 justify-center">
 							<div class="device-knob size-[4.4rem] rounded-full border border-[#101010]"></div>
