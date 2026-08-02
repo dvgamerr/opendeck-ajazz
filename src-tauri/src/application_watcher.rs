@@ -16,6 +16,7 @@ pub static APPLICATION_PROFILES: Lazy<RwLock<Store<ApplicationProfiles>>> = Lazy
 
 pub static APPLICATION_PROCESSES: Lazy<RwLock<HashMap<String, Vec<u32>>>> = Lazy::new(|| RwLock::new(HashMap::new()));
 pub static APPLICATION_PLUGINS: Lazy<RwLock<HashMap<String, Vec<String>>>> = Lazy::new(|| RwLock::new(HashMap::new()));
+pub static PREVIOUS_PROFILES: Lazy<RwLock<HashMap<String, String>>> = Lazy::new(|| RwLock::new(HashMap::new()));
 
 #[derive(Clone, serde::Serialize)]
 pub struct SwitchProfileEvent {
@@ -26,7 +27,6 @@ pub struct SwitchProfileEvent {
 pub fn init_application_watcher() {
 	tokio::spawn(async move {
 		let mut previous = String::new();
-		let mut previous_profiles = HashMap::<String, String>::new();
 		let app_handle = crate::APP_HANDLE.get().unwrap();
 		loop {
 			let app_name = if let Ok(win) = get_active_window() {
@@ -51,9 +51,10 @@ pub fn init_application_watcher() {
 					};
 
 					let application_profile = application.and_then(|profiles| profiles.get(&device)).cloned();
+					let previous_profile = PREVIOUS_PROFILES.read().await.get(&device).cloned();
 					let (profile, remember_current, restore_previous) = if let Some(profile) = application_profile {
-						(profile, !previous_profiles.contains_key(&device), false)
-					} else if let Some(profile) = previous_profiles.get(&device).cloned() {
+						(profile, previous_profile.is_none(), false)
+					} else if let Some(profile) = previous_profile {
 						(profile, false, true)
 					} else if let Some(profile) = default.and_then(|profiles| profiles.get(&device)).cloned() {
 						(profile, false, false)
@@ -80,9 +81,9 @@ pub fn init_application_watcher() {
 					}
 
 					if remember_current {
-						previous_profiles.insert(device.clone(), current_profile);
+						PREVIOUS_PROFILES.write().await.insert(device.clone(), current_profile);
 					} else if restore_previous {
-						previous_profiles.remove(&device);
+						PREVIOUS_PROFILES.write().await.remove(&device);
 					}
 				}
 				previous = app_name;

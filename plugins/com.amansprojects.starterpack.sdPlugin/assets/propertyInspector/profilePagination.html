@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<script>
+			let websocket;
+			let actionContext;
+			let availableProfiles = [];
+			let selectedProfiles = [];
+
+			function save() {
+				websocket?.send(
+					JSON.stringify({
+						event: "setSettings",
+						context: actionContext,
+						payload: { profiles: selectedProfiles },
+					}),
+				);
+			}
+
+			function renderProfiles() {
+				const list = document.getElementById("profiles");
+				list.replaceChildren();
+				for (const profile of availableProfiles) {
+					const row = document.createElement("label");
+					row.className = "flex cursor-pointer items-center gap-3 border-b border-base-300 px-3 py-2 last:border-b-0";
+
+					const checkbox = document.createElement("input");
+					checkbox.type = "checkbox";
+					checkbox.className = "checkbox checkbox-primary checkbox-sm";
+					checkbox.checked = selectedProfiles.includes(profile);
+					checkbox.addEventListener("change", () => {
+						if (checkbox.checked) selectedProfiles.push(profile);
+						else selectedProfiles = selectedProfiles.filter((selected) => selected !== profile);
+						renderProfiles();
+						save();
+					});
+
+					const name = document.createElement("span");
+					name.className = "min-w-0 flex-1 truncate";
+					name.textContent = profile;
+
+					const page = document.createElement("span");
+					const pageIndex = selectedProfiles.indexOf(profile);
+					page.className = pageIndex >= 0 ? "badge badge-primary badge-sm" : "badge badge-ghost badge-sm";
+					page.textContent = pageIndex >= 0 ? `Page ${pageIndex + 1}` : "Off";
+
+					row.append(checkbox, name, page);
+					list.append(row);
+				}
+
+				document.getElementById("empty").classList.toggle("hidden", availableProfiles.length > 0);
+			}
+
+			function applySettings(settings) {
+				const configured = Array.isArray(settings?.profiles) ? settings.profiles : [];
+				selectedProfiles = configured.filter((profile, index) => availableProfiles.includes(profile) && configured.indexOf(profile) === index);
+				renderProfiles();
+			}
+
+			function connectElgatoStreamDeckSocket(inPort, inPropertyInspectorUUID, inRegisterEvent, inInfo, inActionInfo) {
+				const actionInfo = JSON.parse(inActionInfo);
+				actionContext = actionInfo.context;
+				availableProfiles = Array.isArray(actionInfo.payload.profiles) ? actionInfo.payload.profiles : [];
+				applySettings(actionInfo.payload.settings);
+
+				websocket = new WebSocket("ws://localhost:" + inPort);
+				websocket.onopen = () => {
+					websocket.send(JSON.stringify({ event: inRegisterEvent, uuid: inPropertyInspectorUUID }));
+				};
+				websocket.onmessage = ({ data }) => {
+					const message = JSON.parse(data);
+					if (message.event === "didReceiveSettings" && message.context === actionContext) applySettings(message.payload.settings);
+				};
+			}
+		</script>
+	</head>
+	<body class="inspector-page bg-base-200 text-base-content">
+		<section class="inspector-panel card bg-base-100">
+			<div class="card-body">
+				<header class="inspector-header">
+					<h1 class="card-title">Profile Pagination</h1>
+					<span class="badge badge-neutral">Dial</span>
+				</header>
+				<p class="text-sm opacity-70">Check profiles to assign Page 1, Page 2, Page 3, and so on. Turn the dial to switch pages; pages wrap at either end.</p>
+				<div class="alert py-2 text-xs"><span>Place this action on the same dial in every selected profile so paging remains available after each switch.</span></div>
+				<div id="profiles" class="overflow-hidden rounded-box border border-base-300 bg-base-200"></div>
+				<div id="empty" class="alert hidden"><span>No profiles are available for this device.</span></div>
+				<p class="text-xs opacity-60">To change page order, uncheck a profile and check it again.</p>
+			</div>
+		</section>
+	</body>
+</html>

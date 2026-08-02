@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-use anyhow::{Context, anyhow};
+use anyhow::{Context, anyhow, bail};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -84,6 +84,122 @@ impl ProfileStores {
 		let _ = fs::remove_dir_all(images_path);
 	}
 
+	pub fn rename_profile(&mut self, device: &DeviceInfo, old_id: &str, new_id: &str) -> Result<Profile, anyhow::Error> {
+		let old_key = Self::canonical_id(&device.id, old_id);
+		let new_key = Self::canonical_id(&device.id, new_id);
+		let old_store = self.stores.get(&old_key).ok_or_else(|| anyhow!("profile not found"))?;
+		let mut renamed_profile = old_store.value.clone();
+
+		let profiles_dir = config_dir().join("profiles");
+		let old_path = profiles_dir.join(format!("{old_key}.json"));
+		let new_path = profiles_dir.join(format!("{new_key}.json"));
+		if self.stores.contains_key(&new_key) || new_path.exists() {
+			bail!("profile {new_id} already exists");
+		}
+
+		let old_images = config_dir().join("images").join(&device.id).join(PathBuf::from(old_id));
+		let new_images = config_dir().join("images").join(&device.id).join(PathBuf::from(new_id));
+		if old_images.exists() && new_images.exists() {
+			bail!("profile image directory for {new_id} already exists");
+		}
+
+		if old_images.exists() {
+			fs::create_dir_all(new_images.parent().unwrap())?;
+			fs::rename(&old_images, &new_images)?;
+		}
+
+		rename_profile_contents(&mut renamed_profile, new_id, &old_images, &new_images);
+		let mut new_store = Store::new(&new_key, &profiles_dir, renamed_profile.clone())?;
+		new_store.value = renamed_profile.clone();
+		if let Err(error) = new_store.save() {
+			let _ = fs::remove_file(&new_path);
+			if new_images.exists() {
+				let _ = fs::rename(&new_images, &old_images);
+			}
+			return Err(error);
+		}
+
+		if let Err(error) = fs::remove_file(&old_path) {
+			let _ = fs::remove_file(&new_path);
+			if new_images.exists() {
+				let _ = fs::rename(&new_images, &old_images);
+			}
+			return Err(error.into());
+		}
+
+		self.stores.remove(&old_key);
+		self.stores.insert(new_key, new_store);
+		if let Some(parent) = old_path.parent() {
+			let _ = fs::remove_dir(parent);
+		}
+		if let Some(parent) = old_images.parent() {
+			let _ = fs::remove_dir(parent);
+		}
+
+		Ok(renamed_profile)
+	}
+
+	pub fn update_profile_action_references(&mut self, device: &str, old_id: &str, new_id: Option<&str>) -> Result<(), anyhow::Error> {
+		fn update_instance(instance: &mut ActionInstance, device: &str, old_id: &str, new_id: Option<&str>) -> bool {
+			let mut changed = false;
+			if let Some(settings) = instance.settings.as_object_mut() {
+				let targets_device = settings.get("device").and_then(|value| value.as_str()).is_none_or(|target| target == device);
+				if instance.action.uuid == "com.amansprojects.starterpack.switchprofile" && targets_device && settings.get("profile").and_then(|value| value.as_str()) == Some(old_id) {
+					if let Some(new_id) = new_id {
+						settings.insert("profile".to_owned(), serde_json::Value::String(new_id.to_owned()));
+					} else {
+						settings.remove("profile");
+					}
+					changed = true;
+				}
+				if instance.action.uuid == "com.amansprojects.starterpack.profilepagination"
+					&& let Some(profiles) = settings.get_mut("profiles").and_then(serde_json::Value::as_array_mut)
+				{
+					let mut updated = Vec::with_capacity(profiles.len());
+					for mut profile in profiles.drain(..) {
+						if profile.as_str() == Some(old_id) {
+							changed = true;
+							let Some(new_id) = new_id else { continue };
+							profile = serde_json::Value::String(new_id.to_owned());
+						}
+						if !updated.contains(&profile) {
+							updated.push(profile);
+						}
+					}
+					*profiles = updated;
+				}
+			}
+			if let Some(children) = &mut instance.children {
+				for child in children {
+					changed |= update_instance(child, device, old_id, new_id);
+				}
+			}
+			changed
+		}
+
+		for store in self.stores.values_mut() {
+			let belongs_to_device = store
+				.value
+				.keys
+				.iter()
+				.chain(&store.value.sliders)
+				.flatten()
+				.next()
+				.is_some_and(|instance| instance.context.device == device);
+			if !belongs_to_device {
+				continue;
+			}
+			let mut changed = false;
+			for instance in store.value.keys.iter_mut().chain(&mut store.value.sliders).flatten() {
+				changed |= update_instance(instance, device, old_id, new_id);
+			}
+			if changed {
+				store.save()?;
+			}
+		}
+		Ok(())
+	}
+
 	pub fn all_from_plugin(&self, plugin: &str) -> Vec<crate::shared::ActionContext> {
 		let mut all = vec![];
 		for store in self.stores.values() {
@@ -97,9 +213,40 @@ impl ProfileStores {
 	}
 }
 
+fn rename_profile_contents(profile: &mut Profile, new_id: &str, old_images: &std::path::Path, new_images: &std::path::Path) {
+	fn rename_instance(instance: &mut ActionInstance, new_id: &str, old_images: &std::path::Path, new_images: &std::path::Path) {
+		instance.context.profile = new_id.to_owned();
+		for state in &mut instance.states {
+			let path = std::path::Path::new(&state.image);
+			if path.starts_with(old_images) {
+				state.image = new_images.join(path.strip_prefix(old_images).unwrap()).to_string_lossy().into_owned();
+			}
+		}
+		if let Some(children) = &mut instance.children {
+			for child in children {
+				rename_instance(child, new_id, old_images, new_images);
+			}
+		}
+	}
+
+	profile.id = new_id.to_owned();
+	for instance in profile.keys.iter_mut().chain(&mut profile.sliders).flatten() {
+		rename_instance(instance, new_id, old_images, new_images);
+	}
+}
+
 #[derive(Serialize, Deserialize)]
+#[serde(default)]
 pub struct DeviceConfig {
 	pub selected_profile: String,
+}
+
+impl Default for DeviceConfig {
+	fn default() -> Self {
+		Self {
+			selected_profile: "Default".to_owned(),
+		}
+	}
 }
 
 impl super::NotProfile for DeviceConfig {}
@@ -109,37 +256,33 @@ pub struct DeviceStores {
 }
 
 impl DeviceStores {
-	pub fn get_selected_profile(&mut self, device: &str) -> Result<String, anyhow::Error> {
+	fn get_or_create(&mut self, device: &str) -> Result<&mut Store<DeviceConfig>, anyhow::Error> {
 		if !self.stores.contains_key(device) {
-			let default = DeviceConfig {
-				selected_profile: "Default".to_owned(),
-			};
-
-			let store = Store::new(device, &config_dir().join("profiles"), default).context(format!("Failed to create store for device config {}", device))?;
+			let store = Store::new(device, &config_dir().join("profiles"), DeviceConfig::default()).context(format!("Failed to create store for device config {device}"))?;
 			store.save()?;
-
 			self.stores.insert(device.to_owned(), store);
 		}
+		Ok(self.stores.get_mut(device).unwrap())
+	}
 
-		let from_store = &self.stores.get(device).unwrap().value.selected_profile;
+	pub fn get_selected_profile(&mut self, device: &str) -> Result<String, anyhow::Error> {
+		let from_store = self.get_or_create(device)?.value.selected_profile.clone();
 		let all = get_device_profiles(device)?;
-		if all.contains(from_store) { Ok(from_store.clone()) } else { Ok(all.first().unwrap().clone()) }
+		if all.contains(&from_store) { Ok(from_store) } else { Ok(all.first().unwrap().clone()) }
 	}
 
 	pub fn set_selected_profile(&mut self, device: &str, id: String) -> Result<(), anyhow::Error> {
-		if self.stores.contains_key(device) {
-			let store = self.stores.get_mut(device).unwrap();
-			store.value.selected_profile = id;
-			store.save()?;
-		} else {
-			let default = DeviceConfig { selected_profile: id };
+		let store = self.get_or_create(device)?;
+		store.value.selected_profile = id;
+		store.save()
+	}
 
-			let store = Store::new(device, &config_dir().join("profiles"), default).context(format!("Failed to create store for device config {}", device))?;
-			store.save()?;
-
-			self.stores.insert(device.to_owned(), store);
+	pub fn rename_profile_references(&mut self, device: &str, old_id: &str, new_id: &str) -> Result<(), anyhow::Error> {
+		let store = self.get_or_create(device)?;
+		if store.value.selected_profile == old_id {
+			store.value.selected_profile = new_id.to_owned();
 		}
-		Ok(())
+		store.save()
 	}
 }
 
@@ -186,6 +329,7 @@ pub fn get_device_profiles(device: &str) -> Result<Vec<String>, anyhow::Error> {
 	if profiles.is_empty() {
 		profiles.push("Default".to_owned());
 	}
+	profiles.sort_by_key(|profile| profile.to_lowercase());
 
 	Ok(profiles)
 }
@@ -280,4 +424,73 @@ pub async fn save_profile(device: &str, locks: &mut LocksMut<'_>) -> Result<(), 
 	let device = DEVICES.get(device).unwrap();
 	let store = locks.profile_stores.get_profile_store(&device, &selected_profile)?;
 	store.save()
+}
+
+#[cfg(test)]
+mod tests {
+	use super::{DeviceConfig, rename_profile_contents};
+	use crate::shared::{Action, ActionContext, ActionInstance, ActionState, Profile};
+	use std::path::PathBuf;
+
+	#[test]
+	fn legacy_device_config_defaults_selected_profile() {
+		let config: DeviceConfig = serde_json::from_value(serde_json::json!({
+			"selected_profile": "Work"
+		}))
+		.expect("legacy device config should remain readable");
+
+		assert_eq!(config.selected_profile, "Work");
+	}
+
+	#[test]
+	fn rename_profile_updates_nested_contexts_and_image_paths() {
+		fn instance(profile: &str, image: String, children: Option<Vec<ActionInstance>>) -> ActionInstance {
+			ActionInstance {
+				action: Action {
+					name: "Test".to_owned(),
+					uuid: "test.action".to_owned(),
+					plugin: "test".to_owned(),
+					tooltip: String::new(),
+					icon: String::new(),
+					disable_automatic_states: false,
+					visible_in_action_list: true,
+					supported_in_multi_actions: true,
+					property_inspector: String::new(),
+					controllers: vec!["Keypad".to_owned()],
+					states: vec![ActionState::default()],
+				},
+				context: ActionContext {
+					device: "device".to_owned(),
+					profile: profile.to_owned(),
+					controller: "Keypad".to_owned(),
+					position: 0,
+					index: 0,
+				},
+				states: vec![ActionState { image, ..ActionState::default() }],
+				current_state: 0,
+				settings: serde_json::Value::Null,
+				children,
+			}
+		}
+
+		let old_images = PathBuf::from("images").join("device").join("Old");
+		let new_images = PathBuf::from("images").join("device").join("New");
+		let child = instance("Old", old_images.join("child.png").to_string_lossy().into_owned(), None);
+		let parent = instance("Old", old_images.join("parent.png").to_string_lossy().into_owned(), Some(vec![child]));
+		let mut profile = Profile {
+			id: "Old".to_owned(),
+			keys: vec![Some(parent)],
+			sliders: vec![],
+		};
+
+		rename_profile_contents(&mut profile, "New", &old_images, &new_images);
+
+		let parent = profile.keys[0].as_ref().unwrap();
+		let child = &parent.children.as_ref().unwrap()[0];
+		assert_eq!(profile.id, "New");
+		assert_eq!(parent.context.profile, "New");
+		assert_eq!(child.context.profile, "New");
+		assert_eq!(parent.states[0].image, new_images.join("parent.png").to_string_lossy());
+		assert_eq!(child.states[0].image, new_images.join("child.png").to_string_lossy());
+	}
 }

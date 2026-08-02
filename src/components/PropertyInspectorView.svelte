@@ -30,7 +30,8 @@
 		}
 
 		if (instance == null || !iframe.src || !iframe.src.startsWith(getWebserverUrl())) return;
-		const info = JSON.stringify(await invoke("make_info", { plugin: instance.action.plugin }));
+		const [infoValue, profiles] = await Promise.all([invoke("make_info", { plugin: instance.action.plugin }), invoke<string[]>("get_profiles", { device: split[0] })]);
+		const info = JSON.stringify(infoValue);
 
 		iframe?.contentWindow?.postMessage(
 			{
@@ -47,6 +48,7 @@
 						device: split[0],
 						payload: {
 							settings: instance.settings,
+							profiles,
 							coordinates,
 							controller: split[2],
 							state: instance.current_state,

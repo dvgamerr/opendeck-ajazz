@@ -31,6 +31,16 @@
 			"PropertyInspectorPath": "propertyInspector/switchProfile.html"
 		},
 		{
+			"Icon": "icons/switchProfile",
+			"Name": "Profile Pagination",
+			"States": [{ "Image": "actionDefaultImage", "ShowTitle": false }],
+			"Controllers": ["Encoder"],
+			"SupportedInMultiActions": false,
+			"Tooltip": "Turn the dial to switch between selected profile pages",
+			"UUID": "com.amansprojects.starterpack.profilepagination",
+			"PropertyInspectorPath": "propertyInspector/profilePagination.html"
+		},
+		{
 			"Icon": "icons/deviceBrightness",
 			"Name": "Device Brightness",
 			"States": [{ "Image": "actionDefaultImage" }],

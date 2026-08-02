@@ -12,7 +12,7 @@ await rm(outDir, { recursive: true, force: true });
 await cp("assets", outDir, { recursive: true });
 
 const platform = process.platform === "win32" ? "windows" : process.platform;
-const cargo = Bun.spawn(["cargo", "install", "--path", ".", "--target", target, "--root", join(outDir, platform)], {
+const cargo = Bun.spawn(["cargo", "install", "--force", "--path", ".", "--target", target, "--root", join(outDir, platform)], {
 	stdin: "inherit",
 	stdout: "inherit",
 	stderr: "inherit",

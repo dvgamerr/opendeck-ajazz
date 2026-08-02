@@ -3,6 +3,7 @@ mod device_brightness;
 mod input_simulation;
 mod live;
 mod pixel;
+mod profile_pagination;
 mod run_command;
 mod switch_profile;
 mod system_monitor;
@@ -117,6 +118,7 @@ impl openaction::ActionEventHandler for ActionEventHandler {
 		outbound: &mut openaction::OutboundEventManager,
 	) -> EventHandlerResult {
 		match &event.action[..] {
+			profile_pagination::ACTION => profile_pagination::rotate(event, outbound).await,
 			"com.amansprojects.starterpack.runcommand" => run_command::rotate(event),
 			"com.amansprojects.starterpack.inputsimulation" => {
 				input_simulation::rotate(event).await
@@ -138,6 +140,9 @@ impl openaction::ActionEventHandler for ActionEventHandler {
 	) -> EventHandlerResult {
 		match event.action.as_str() {
 			audio::ACTION => audio::appear(event.context, outbound).await,
+			profile_pagination::ACTION => {
+				profile_pagination::appear(event.context, event.payload.settings, outbound).await
+			}
 			system_monitor::ACTION => {
 				system_monitor::appear(event.context, event.payload.settings, outbound).await
 			}
@@ -165,6 +170,9 @@ impl openaction::ActionEventHandler for ActionEventHandler {
 	) -> EventHandlerResult {
 		match event.action.as_str() {
 			audio::ACTION => audio::refresh(event.context, outbound).await,
+			profile_pagination::ACTION => {
+				profile_pagination::refresh(event.context, event.payload.settings, outbound).await
+			}
 			system_monitor::ACTION => {
 				system_monitor::refresh(event.context, event.payload.settings, outbound).await
 			}
