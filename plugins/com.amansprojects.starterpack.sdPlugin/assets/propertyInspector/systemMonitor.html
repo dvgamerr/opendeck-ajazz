@@ -9,15 +9,17 @@
 				const socket = new WebSocket("ws://localhost:" + port);
 				const action = JSON.parse(actionInfo);
 				const mode = document.getElementById("mode");
+				const metric = document.getElementById("metric");
 				const savedMode = action.payload.settings.mode ?? "normal";
 				mode.value = savedMode === "mini" ? "compact" : savedMode === "medium" ? "normal" : savedMode;
+				metric.value = action.payload.settings.metric ?? "overview";
 				socket.onopen = () => socket.send(JSON.stringify({ event: registerEvent, uuid }));
 				save = () =>
 					socket.send(
 						JSON.stringify({
 							event: "setSettings",
 							context: action.context,
-							payload: { mode: mode.value },
+							payload: { mode: mode.value, metric: metric.value },
 						}),
 					);
 			}
@@ -31,6 +33,17 @@
 					<span class="badge badge-neutral">Realtime display</span>
 				</header>
 				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Metric</legend>
+					<select id="metric" class="select w-full" onchange="save()">
+						<option value="overview">Overview — CPU, GPU, and memory</option>
+						<option value="cpu">CPU usage</option>
+						<option value="gpu">GPU usage</option>
+						<option value="memory">Memory usage</option>
+						<option value="cpu-temperature">CPU temperature</option>
+						<option value="gpu-temperature">GPU temperature</option>
+					</select>
+				</fieldset>
+				<fieldset class="fieldset">
 					<legend class="fieldset-legend">Display mode</legend>
 					<select id="mode" class="select w-full" onchange="save()">
 						<option value="compact">Compact — values only</option>
@@ -40,17 +53,17 @@
 				</fieldset>
 				<div class="inspector-options">
 					<div>
-						<span><strong>Compact</strong><br />CPU, GPU, and used memory in two compact rows.</span>
+						<span><strong>Compact</strong><br />Large value with minimal decoration.</span>
 					</div>
 					<div>
-						<span><strong>Normal</strong><br />The original three colored segmented meters.</span>
+						<span><strong>Normal</strong><br />Large value with a segmented meter.</span>
 					</div>
 					<div>
-						<span><strong>Full</strong><br />Live percentages, history lines, RAM, free memory, and page file.</span>
+						<span><strong>Full</strong><br />Live value and a 30-second history graph.</span>
 					</div>
 				</div>
 				<div role="alert" class="alert">
-					<span>CPU, GPU, and physical memory refresh once per second.</span>
+					<span>Usage refreshes once per second. Unsupported temperature sensors display --.</span>
 				</div>
 			</div>
 		</section>

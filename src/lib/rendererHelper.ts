@@ -1,9 +1,7 @@
 import type { ActionState } from "./ActionState.ts";
-import type { Context } from "./Context.ts";
 
+import { isGifImageSource } from "./imageFormat.ts";
 import { getWebserverUrl } from "./ports.ts";
-
-import { invoke } from "@tauri-apps/api/core";
 
 export function getImage(image: string | undefined, fallback: string | undefined): string {
 	if (!image) return fallback ? getImage(fallback, undefined) : "/alert.png";
@@ -41,15 +39,14 @@ export class CanvasLock {
 
 export async function renderImage(
 	canvas: HTMLCanvasElement,
-	slotContext: Context | null,
 	state: ActionState,
 	fallback: string | undefined,
 	showOk: boolean,
 	showAlert: boolean,
 	processImage: boolean,
-	active: boolean,
 	pressed: boolean,
-) {
+	sourceImage?: HTMLImageElement,
+): Promise<HTMLImageElement | undefined> {
 	// Create canvas
 	let scale = 1;
 	if (!canvas) {
@@ -62,17 +59,20 @@ export async function renderImage(
 
 	const context = canvas.getContext("2d");
 	if (!context) return;
+	let renderedImage = sourceImage;
 
 	try {
 		// Load image
-		const image = document.createElement("img");
-		image.crossOrigin = "anonymous";
-		image.src = processImage ? getImage(state.image, fallback) : state.image;
-		if (image.src == undefined) return;
-		await new Promise((resolve, reject) => {
-			image.onload = resolve;
-			image.onerror = reject;
-		});
+		const image = sourceImage ?? document.createElement("img");
+		if (!sourceImage) {
+			image.crossOrigin = "anonymous";
+			image.src = processImage ? getImage(state.image, fallback) : state.image;
+			await new Promise<void>((resolve, reject) => {
+				image.onload = () => resolve();
+				image.onerror = reject;
+			});
+		}
+		renderedImage = image;
 
 		// Draw image
 		context.clearRect(0, 0, canvas.width, canvas.height);
@@ -80,6 +80,7 @@ export async function renderImage(
 		context.drawImage(image, 0, 0, canvas.width, canvas.height);
 	} catch (error: any) {
 		if (!(error instanceof Event)) console.error(error);
+		renderedImage = undefined;
 		context.clearRect(0, 0, canvas.width, canvas.height);
 		showAlert = true;
 	}
@@ -152,10 +153,14 @@ export async function renderImage(
 		}
 	}
 
-	if (active && slotContext) setTimeout(async () => await invoke("update_image", { context: slotContext, image: canvas.toDataURL("image/jpeg") }), 10);
+	return renderedImage;
 }
 
 export async function resizeImage(source: string): Promise<string | undefined> {
+	// Drawing an animated GIF through a canvas keeps only its current frame. Keep
+	// the original data URL so the key renderer can decode and animate every frame.
+	if (isGifImageSource(source)) return source;
+
 	const canvas = document.createElement("canvas");
 	canvas.width = 288;
 	canvas.height = 288;

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { ActionInstance } from "$lib/ActionInstance";
 
+	import { isGifImageSource } from "$lib/imageFormat";
 	import { getImage, resizeImage } from "$lib/rendererHelper";
 
 	import { invoke } from "@tauri-apps/api/core";
@@ -26,11 +27,19 @@
 		};
 	}
 
-	function update(instance: ActionInstance) {
-		bold = instance.states[state].style.includes("Bold");
-		italic = instance.states[state].style.includes("Italic");
+	function update(instance: ActionInstance, selectedState: number) {
+		bold = instance.states[selectedState].style.includes("Bold");
+		italic = instance.states[selectedState].style.includes("Italic");
 	}
-	$: update(instance);
+
+	function updateStyle() {
+		instance.states[state].style = bold && italic ? "Bold Italic" : bold ? "Bold" : italic ? "Italic" : "Regular";
+	}
+
+	function resetImage() {
+		instance.states[state].image = instance.action.states[state]?.image ?? instance.action.icon;
+	}
+	$: update(instance, state);
 	$: void invoke("set_state", { instance, state });
 </script>
 
@@ -43,42 +52,63 @@
 <div use:portalToPreviewDock class="modal modal-open absolute inset-0 z-[120]">
 	<button type="button" class="modal-backdrop bg-black/60 backdrop-blur-sm" aria-label="Close key editor" on:click={() => (showEditor = false)}>Close</button>
 
-	<div class="modal-box z-10 h-[calc(100%-2rem)] w-[calc(100%-2rem)] max-w-none overflow-y-auto border border-base-300 p-4" role="dialog" aria-modal="true" aria-label="Edit key appearance">
-		<header class="mb-4 flex items-center border-b border-base-300 pb-3">
-			<div>
+	<div
+		class="modal-box z-10 flex max-h-[calc(100%-2rem)] w-[min(58rem,calc(100%-2rem))] max-w-none flex-col overflow-hidden border border-base-300 bg-base-100 p-0"
+		role="dialog"
+		aria-modal="true"
+		aria-label="Edit key appearance"
+	>
+		<header class="flex shrink-0 items-center gap-4 border-b border-base-300 px-5 py-4">
+			<div class="min-w-0">
 				<p class="ui-eyebrow">Key appearance</p>
-				<h2 class="ui-page-title">Customize state</h2>
+				<h2 class="ui-page-title truncate">Customize state {state + 1}</h2>
 			</div>
-			<label class="form-control ml-auto w-48">
-				<span class="sr-only">State</span>
-				<select class="select select-sm w-full" bind:value={state}>
-					{#each instance.states as _, i}
-						<option value={i}>State {i + 1}</option>
-					{/each}
-				</select>
-			</label>
-			<button type="button" class="btn btn-circle btn-ghost ml-3" aria-label="Close key editor" on:click={() => (showEditor = false)}>✕</button>
+			<div class="ml-auto flex shrink-0 items-center gap-2">
+				<label class="flex items-center gap-2">
+					<span class="ui-label hidden sm:inline">State</span>
+					<select class="select select-sm w-32" bind:value={state} aria-label="State">
+						{#each instance.states as _, i}
+							<option value={i}>State {i + 1}</option>
+						{/each}
+					</select>
+				</label>
+				<button type="button" class="btn btn-circle btn-ghost btn-sm" aria-label="Close key editor" on:click={() => (showEditor = false)}>✕</button>
+			</div>
 		</header>
 
-		<div class="grid gap-4 md:grid-cols-[10rem_minmax(0,1fr)]">
-			<div class="card items-center border border-base-300 bg-base-200 p-4">
+		<div class="grid min-h-0 gap-5 overflow-y-auto p-5 md:grid-cols-[13rem_minmax(0,1fr)]">
+			<aside class="ui-surface h-fit bg-base-200 p-4 md:sticky md:top-0">
+				<div class="mb-3 flex items-center justify-between">
+					<h3 class="ui-title">Preview</h3>
+					{#if isGifImageSource(getImage(instance.states[state].image, instance.action.states[state]?.image ?? instance.action.icon))}
+						<span class="badge badge-primary badge-sm">GIF</span>
+					{:else}
+						<span class="badge badge-neutral badge-sm">State {state + 1}</span>
+					{/if}
+				</div>
 				<button
 					type="button"
-					class="btn h-auto border-0 bg-transparent p-0 shadow-none"
+					class="btn mx-auto block h-auto w-full border-0 bg-transparent p-0 shadow-none"
+					aria-label="Choose state image"
 					on:click={() => fileInput.click()}
 					on:contextmenu={(event) => {
 						event.preventDefault();
-						instance.states[state].image = instance.action.states[state].image;
+						resetImage();
 					}}
 				>
 					<img
 						src={getImage(instance.states[state].image, instance.action.states[state]?.image ?? instance.action.icon)}
-						class="aspect-square w-32 rounded-box object-cover"
+						class="mx-auto aspect-square w-full max-w-40 rounded-box border border-base-300 object-cover shadow-sm"
 						alt="State {state + 1} preview"
 					/>
 				</button>
-				<button type="button" on:click={() => colourInput.click()} class="btn btn-sm mt-3 w-full">Solid colour</button>
-			</div>
+				<button type="button" on:click={() => fileInput.click()} class="btn btn-primary btn-sm mt-4 w-full">Choose image</button>
+				<div class="mt-2 grid grid-cols-2 gap-2">
+					<button type="button" on:click={() => colourInput.click()} class="btn btn-sm">Solid colour</button>
+					<button type="button" on:click={resetImage} class="btn btn-ghost btn-sm">Reset</button>
+				</div>
+				<p class="ui-caption ui-muted mt-3 text-center">Animated GIFs are preserved. Right-click to reset.</p>
+			</aside>
 			<input
 				bind:this={fileInput}
 				type="file"
@@ -103,7 +133,7 @@
 			<input
 				bind:this={colourInput}
 				type="color"
-				class="invisible w-0 h-0"
+				class="sr-only"
 				value="#FFFFFE"
 				on:change={() => {
 					const canvas = document.createElement("canvas");
@@ -117,73 +147,101 @@
 				}}
 			/>
 
-			<div class="grid content-start gap-3 sm:grid-cols-2">
-				<label class="form-control sm:col-span-2">
-					<span class="label-text mb-1">Text</span>
-					<textarea bind:value={instance.states[state].text} rows="2" class="textarea textarea-bordered w-full resize-none"></textarea>
-				</label>
-				<label class="form-control">
-					<span class="label-text mb-1">Text colour</span>
-					<input type="color" bind:value={instance.states[state].colour} class="input input-bordered h-10 w-full p-1" />
-				</label>
-				<label class="form-control">
-					<span class="label-text mb-1">Alignment</span>
-					<select bind:value={instance.states[state].alignment} class="select select-bordered select-sm w-full">
-						<option value="top">Top</option>
-						<option value="middle">Middle</option>
-						<option value="bottom">Bottom</option>
-					</select>
-				</label>
-				<label class="form-control sm:col-span-2">
-					<span class="label-text mb-1">Font family</span>
-					<input list="families" bind:value={instance.states[state].family} placeholder="Font family" class="input input-bordered input-sm w-full" />
-					<datalist id="families">
-						<option value="Liberation Sans">Liberation Sans</option>
-						<option value="Archivo Black">Archivo Black</option>
-						<option value="Comic Neue">Comic Neue</option>
-						<option value="Courier Prime">Courier Prime</option>
-						<option value="Tinos">Tinos</option>
-						<option value="Anton">Anton</option>
-						<option value="Liberation Serif">Liberation Serif</option>
-						<option value="Open Sans">Open Sans</option>
-						<option value="Fira Sans">Fira Sans</option>
-					</datalist>
-				</label>
-				<div class="join">
-					<label class="btn btn-sm join-item">
-						<span class="font-bold">B</span>
-						<input
-							type="checkbox"
-							bind:checked={bold}
-							on:change={() => (instance.states[state].style = bold && italic ? "Bold Italic" : bold ? "Bold" : italic ? "Italic" : "Regular")}
-							class="checkbox checkbox-xs"
-						/>
+			<div class="flex min-w-0 flex-col gap-4">
+				<section class="ui-surface p-4">
+					<div class="mb-3 flex items-start justify-between gap-4">
+						<div>
+							<h3 class="ui-title">Label</h3>
+							<p class="ui-caption ui-muted mt-1">Add a short title over the state image.</p>
+						</div>
+						<label class="flex shrink-0 cursor-pointer items-center gap-2">
+							<span class="ui-label">Show text</span>
+							<input type="checkbox" bind:checked={instance.states[state].show} class="toggle toggle-primary toggle-sm" />
+						</label>
+					</div>
+					<label class="form-control">
+						<span class="label-text mb-1">Text</span>
+						<textarea bind:value={instance.states[state].text} rows="3" placeholder="Enter state label" class="textarea textarea-bordered w-full resize-none"></textarea>
 					</label>
-					<label class="btn btn-sm join-item">
-						<span class="italic">I</span>
-						<input
-							type="checkbox"
-							bind:checked={italic}
-							on:change={() => (instance.states[state].style = bold && italic ? "Bold Italic" : bold ? "Bold" : italic ? "Italic" : "Regular")}
-							class="checkbox checkbox-xs"
-						/>
-					</label>
-					<label class="btn btn-sm join-item">
-						<span class="underline">U</span>
-						<input type="checkbox" bind:checked={instance.states[state].underline} class="checkbox checkbox-xs" />
-					</label>
-				</div>
-				<div class="flex items-center justify-end gap-3">
-					<label class="label cursor-pointer gap-2">
-						<span class="label-text">Show text</span>
-						<input type="checkbox" bind:checked={instance.states[state].show} class="toggle toggle-primary toggle-sm" />
-					</label>
-					<label class="form-control w-20">
-						<span class="label-text mb-1">Size</span>
-						<input type="number" bind:value={instance.states[state].size} class="input input-bordered input-sm w-full" />
-					</label>
-				</div>
+				</section>
+
+				<section class="ui-surface p-4">
+					<div class="mb-3">
+						<h3 class="ui-title">Typography</h3>
+						<p class="ui-caption ui-muted mt-1">Choose the font, placement, and emphasis.</p>
+					</div>
+					<div class="grid gap-3 sm:grid-cols-2">
+						<label class="form-control sm:col-span-2">
+							<span class="label-text mb-1">Font family</span>
+							<input list="families" bind:value={instance.states[state].family} placeholder="Font family" class="input input-bordered input-sm w-full" />
+							<datalist id="families">
+								<option value="Liberation Sans">Liberation Sans</option>
+								<option value="Archivo Black">Archivo Black</option>
+								<option value="Comic Neue">Comic Neue</option>
+								<option value="Courier Prime">Courier Prime</option>
+								<option value="Tinos">Tinos</option>
+								<option value="Anton">Anton</option>
+								<option value="Liberation Serif">Liberation Serif</option>
+								<option value="Open Sans">Open Sans</option>
+								<option value="Fira Sans">Fira Sans</option>
+							</datalist>
+						</label>
+						<label class="form-control">
+							<span class="label-text mb-1">Text colour</span>
+							<input type="color" bind:value={instance.states[state].colour} class="input input-bordered h-9 w-full p-1" />
+						</label>
+						<label class="form-control">
+							<span class="label-text mb-1">Alignment</span>
+							<select bind:value={instance.states[state].alignment} class="select select-bordered select-sm w-full">
+								<option value="top">Top</option>
+								<option value="middle">Middle</option>
+								<option value="bottom">Bottom</option>
+							</select>
+						</label>
+						<div class="form-control">
+							<span class="label-text mb-1">Style</span>
+							<div class="join w-full">
+								<button
+									type="button"
+									class="btn btn-sm join-item flex-1 font-bold"
+									class:btn-active={bold}
+									aria-pressed={bold}
+									on:click={() => {
+										bold = !bold;
+										updateStyle();
+									}}>B</button
+								>
+								<button
+									type="button"
+									class="btn btn-sm join-item flex-1 italic"
+									class:btn-active={italic}
+									aria-pressed={italic}
+									on:click={() => {
+										italic = !italic;
+										updateStyle();
+									}}>I</button
+								>
+								<button
+									type="button"
+									class="btn btn-sm join-item flex-1 underline"
+									class:btn-active={instance.states[state].underline}
+									aria-pressed={instance.states[state].underline}
+									on:click={() => (instance.states[state].underline = !instance.states[state].underline)}>U</button
+								>
+							</div>
+						</div>
+						<label class="form-control">
+							<span class="label-text mb-1">Size</span>
+							<input type="number" min="1" bind:value={instance.states[state].size} class="input input-bordered input-sm w-full" />
+						</label>
+					</div>
+				</section>
 			</div>
 		</div>
+
+		<footer class="flex shrink-0 items-center gap-3 border-t border-base-300 bg-base-200/50 px-5 py-3">
+			<p class="ui-caption ui-muted">Changes are applied immediately.</p>
+			<button type="button" class="btn btn-primary btn-sm ml-auto min-w-24" on:click={() => (showEditor = false)}>Done</button>
+		</footer>
 	</div>
 </div>

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { ActionInstance } from "$lib/ActionInstance";
 	import type { ActionState } from "$lib/ActionState";
-	import type { Context } from "$lib/Context";
+	import { contextsEqual, type Context } from "$lib/Context";
 
 	import Clipboard from "phosphor-svelte/lib/Clipboard";
 	import Copy from "phosphor-svelte/lib/Copy";
@@ -9,8 +9,10 @@
 	import Trash from "phosphor-svelte/lib/Trash";
 	import InstanceEditor from "./InstanceEditor.svelte";
 
+	import { isGifImageSource } from "$lib/imageFormat";
+	import { pausedProfileRenderingDevices } from "$lib/profileRendering";
 	import { copiedContext, inspectedInstance, inspectedParentAction, openContextMenu } from "$lib/propertyInspector";
-	import { CanvasLock, renderImage } from "$lib/rendererHelper";
+	import { CanvasLock, getImage, renderImage } from "$lib/rendererHelper";
 
 	import { invoke } from "@tauri-apps/api/core";
 	import { listen, type UnlistenFn } from "@tauri-apps/api/event";
@@ -118,7 +120,7 @@
 		);
 		keep(
 			listen("key_moved", ({ payload }: { payload: { context: Context; pressed: boolean } }) => {
-				if (JSON.stringify(context) == JSON.stringify(payload.context)) pressed = payload.pressed;
+				if (contextsEqual(context, payload.context)) pressed = payload.pressed;
 			}),
 		);
 		keep(
@@ -143,6 +145,9 @@
 		);
 
 		return () => {
+			renderGeneration++;
+			stopAnimation();
+			pendingDeviceFrame = undefined;
 			disposed = true;
 			unlisteners.forEach((unlisten) => unlisten());
 			timeouts.forEach(clearTimeout);
@@ -152,27 +157,134 @@
 
 	let canvas: HTMLCanvasElement;
 	let lock = new CanvasLock();
+	const GIF_PREVIEW_INTERVAL_MS = 1000 / 30;
+	const GIF_DEVICE_INTERVAL_MS = 1000 / 10;
+	let animationFrame: number | undefined;
+	let renderGeneration = 0;
+	let cachedGifSource: string | undefined;
+	let cachedGifImage: HTMLImageElement | undefined;
+	let pendingDeviceFrame: { context: Context; image: string } | undefined;
+	let sendingDeviceFrame = false;
+	$: profileRenderingPaused = context ? $pausedProfileRenderingDevices.has(context.device) : false;
+
+	function stopAnimation() {
+		if (animationFrame !== undefined) {
+			window.cancelAnimationFrame(animationFrame);
+			animationFrame = undefined;
+		}
+	}
+
+	async function flushDeviceFrames() {
+		if (sendingDeviceFrame) return;
+		sendingDeviceFrame = true;
+		try {
+			while (pendingDeviceFrame) {
+				const frame = pendingDeviceFrame;
+				pendingDeviceFrame = undefined;
+				try {
+					await invoke("update_image", frame);
+				} catch (error) {
+					console.warn("Failed to update device image", error);
+				}
+			}
+		} finally {
+			sendingDeviceFrame = false;
+		}
+	}
+
+	function queueDeviceFrame(frameContext: Context | null, isActive: boolean) {
+		if (profileRenderingPaused || !isActive || !frameContext || !canvas) return;
+		pendingDeviceFrame = {
+			context: { ...frameContext },
+			image: canvas.toDataURL("image/jpeg"),
+		};
+		void flushDeviceFrames();
+	}
+
+	async function renderSlot(
+		currentSlot: ActionInstance | null,
+		currentState: ActionState | undefined,
+		currentContext: Context | null,
+		isActive: boolean,
+		currentShowOk: boolean,
+		currentShowAlert: boolean,
+		currentPressed: boolean,
+		width: number,
+		height: number,
+	) {
+		const generation = ++renderGeneration;
+		stopAnimation();
+		if (canvas.width != width) canvas.width = width;
+		if (canvas.height != height) canvas.height = height;
+
+		const sl = structuredClone(currentSlot);
+		const renderState = currentState ? structuredClone(currentState) : undefined;
+		if (!sl || !renderState) {
+			cachedGifSource = undefined;
+			cachedGifImage = undefined;
+			const canvasContext = canvas.getContext("2d");
+			if (canvasContext) canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+			return;
+		}
+
+		const fallback = sl.action.states[sl.current_state]?.image ?? sl.action.icon;
+		const source = getImage(renderState.image, fallback);
+		const isGif = isGifImageSource(source);
+		let sourceImage = isGif && cachedGifSource == source ? cachedGifImage : undefined;
+		if (!isGif) {
+			cachedGifSource = undefined;
+			cachedGifImage = undefined;
+		}
+
+		const drawFrame = async (sendToDevice: boolean) => {
+			if (generation != renderGeneration) return undefined;
+			const unlock = await lock.lock();
+			try {
+				if (generation != renderGeneration) return undefined;
+				sourceImage = await renderImage(canvas, renderState, fallback, currentShowOk, currentShowAlert, true, currentPressed, sourceImage);
+			} finally {
+				unlock();
+			}
+
+			if (generation != renderGeneration) return undefined;
+			if (sendToDevice) queueDeviceFrame(currentContext, isActive);
+			return sourceImage;
+		};
+
+		const image = await drawFrame(true);
+		if (generation != renderGeneration || !isGif || !image) return;
+
+		cachedGifSource = source;
+		cachedGifImage = image;
+		let lastPreviewFrame = performance.now();
+		let lastDeviceFrame = lastPreviewFrame;
+		const animate = async (timestamp: number) => {
+			if (generation != renderGeneration) return;
+			if (timestamp - lastPreviewFrame >= GIF_PREVIEW_INTERVAL_MS) {
+				const sendToDevice = timestamp - lastDeviceFrame >= GIF_DEVICE_INTERVAL_MS;
+				await drawFrame(sendToDevice);
+				if (generation != renderGeneration) return;
+				lastPreviewFrame = timestamp;
+				if (sendToDevice) lastDeviceFrame = timestamp;
+			}
+			animationFrame = window.requestAnimationFrame(animate);
+		};
+		animationFrame = window.requestAnimationFrame(animate);
+	}
+
 	export let size = 144;
 	$: canvasWidth = renderWidth ?? size;
 	$: canvasHeight = renderHeight ?? size;
 	$: canvasStyle = resolvedAppearance == "touch" ? "width: 160px; height: 100px;" : `transform: scale(${(112 / size) * scale});`;
-	$: (async () => {
-		const sl = structuredClone(slot);
-		if (!sl) {
-			if (canvas) {
-				let context = canvas.getContext("2d");
-				if (context) context.clearRect(0, 0, canvas.width, canvas.height);
-			}
+	$: if (canvas) {
+		if (profileRenderingPaused) {
+			renderGeneration++;
+			stopAnimation();
+			pendingDeviceFrame = undefined;
 		} else {
-			const unlock = await lock.lock();
-			try {
-				let fallback = sl.action.states[sl.current_state]?.image ?? sl.action.icon;
-				if (state) await renderImage(canvas, context, state, fallback, showOk, showAlert, true, active, pressed);
-			} finally {
-				unlock();
-			}
+			void renderSlot(slot, state, context, active, showOk, showAlert, pressed, canvasWidth, canvasHeight);
 		}
-	})();
+	}
 </script>
 
 <canvas
@@ -196,7 +308,7 @@
 	on:contextmenu={contextMenu}
 ></canvas>
 
-{#if $openContextMenu && $openContextMenu?.context == context}
+{#if $openContextMenu && contextsEqual($openContextMenu.context, context)}
 	<ul use:portalToBody class="menu fixed z-[1000] w-36 rounded-box border border-base-300 bg-base-100 p-1 shadow-lg" style={`left: ${$openContextMenu.x}px; top: ${$openContextMenu.y}px;`}>
 		{#if !slot}
 			<li>

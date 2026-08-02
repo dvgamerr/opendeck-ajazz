@@ -27,6 +27,7 @@ pub async fn get_selected_profile(device: String) -> Result<crate::shared::Profi
 #[command]
 pub async fn reload_selected_profile(device: String) -> Result<crate::shared::Profile, Error> {
 	let mut locks = acquire_locks_mut().await;
+	crate::ajazz::resume_profile_rendering(&device).await;
 	if !DEVICES.contains_key(&device) {
 		return Err(Error::new(format!("device {device} not found")));
 	}

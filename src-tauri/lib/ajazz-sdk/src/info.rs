@@ -305,7 +305,7 @@ impl Kind {
 
             Kind::Akp05E552A => ImageFormat {
                 mode: ImageMode::JPEG,
-                size: (130, 130),
+                size: (120, 120),
                 rotation: ImageRotation::Rot180,
                 mirror: ImageMirroring::None,
             },
@@ -354,7 +354,7 @@ mod tests {
         assert_eq!(kind.lcd_strip_size(), Some((800, 100)));
         assert_eq!(kind.boot_logo_size(), Some((810, 470)));
         assert_eq!(kind.logo_image_format().size, (810, 470));
-        assert_eq!(kind.key_image_format().size, (130, 130));
+        assert_eq!(kind.key_image_format().size, (120, 120));
         assert!(matches!(
             kind.logo_image_format().rotation,
             ImageRotation::Rot180

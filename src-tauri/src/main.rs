@@ -7,6 +7,7 @@ mod events;
 mod plugins;
 mod shared;
 mod store;
+mod window_state;
 mod zip_extract;
 
 mod built_info {
@@ -121,6 +122,9 @@ async fn main() {
 		])
 		.setup(|app| {
 			APP_HANDLE.set(app.handle().clone()).unwrap();
+			if let Some(webview_window) = app.get_webview_window("main") {
+				window_state::initialize(&webview_window.as_ref().window());
+			}
 
 			#[cfg(not(windows))]
 			if std::env::args().any(|v| v == "--hide") {
@@ -316,7 +320,11 @@ If you have already donated, thank you so much for your support!"#,
 			if window.label() != "main" {
 				return;
 			}
+			if matches!(event, WindowEvent::Moved(_) | WindowEvent::Resized(_)) {
+				window_state::queue_save(window);
+			}
 			if let WindowEvent::CloseRequested { api, .. } = event {
+				window_state::save_now(window);
 				if let Ok(true) = store::get_settings().map(|store| store.value.background) {
 					let _ = hide_window(window.app_handle());
 					api.prevent_close();
@@ -333,6 +341,9 @@ If you have already donated, thank you so much for your support!"#,
 
 	app.run(|app, event| {
 		if let tauri::RunEvent::Exit = event {
+			if let Some(webview_window) = app.get_webview_window("main") {
+				window_state::save_now(&webview_window.as_ref().window());
+			}
 			#[cfg(windows)]
 			futures::executor::block_on(plugins::deactivate_plugins());
 			tokio::spawn(ajazz::reset_devices());

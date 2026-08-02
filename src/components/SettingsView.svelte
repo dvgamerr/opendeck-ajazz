@@ -8,6 +8,7 @@
 	import Popup from "./Popup.svelte";
 	import Tooltip from "./Tooltip.svelte";
 
+	import { getPausedProfileRenderingDevices, resumeProfileRendering } from "$lib/profileRendering";
 	import { settings } from "$lib/settings";
 	import { inspectedInstance, inspectedParentAction } from "$lib/propertyInspector";
 	import { PRODUCT_NAME, profileManager } from "$lib/singletons";
@@ -28,13 +29,17 @@
 		inspectedInstance.set(null);
 		inspectedParentAction.set(null);
 
-		const deviceId = device?.id;
-		if (!deviceId) return;
-		try {
-			const selectedProfile = await invoke<Profile>("reload_selected_profile", { device: deviceId });
-			if (device?.id == deviceId) $profileManager?.applySelectedProfile(selectedProfile);
-		} catch {
-			// The selected device can disconnect while Settings is closing.
+		const deviceIds = new Set(getPausedProfileRenderingDevices());
+		if (device?.id) deviceIds.add(device.id);
+		for (const deviceId of deviceIds) {
+			try {
+				const selectedProfile = await invoke<Profile>("reload_selected_profile", { device: deviceId });
+				if (device?.id == deviceId) $profileManager?.applySelectedProfile(selectedProfile);
+			} catch {
+				// The selected device can disconnect while Settings is closing.
+			} finally {
+				resumeProfileRendering(deviceId);
+			}
 		}
 	}
 

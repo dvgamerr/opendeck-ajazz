@@ -46,7 +46,7 @@
 			"States": [{ "Image": "actionDefaultImage", "ShowTitle": false }],
 			"Controllers": ["Encoder"],
 			"SupportedInMultiActions": false,
-			"Tooltip": "Realtime CPU, GPU, and memory monitor",
+			"Tooltip": "Realtime CPU, GPU, memory, and temperature monitor",
 			"UUID": "com.amansprojects.starterpack.systemmonitor",
 			"PropertyInspectorPath": "propertyInspector/systemMonitor.html"
 		},

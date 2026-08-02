@@ -9,6 +9,8 @@
 	import Stack from "phosphor-svelte/lib/Stack";
 	import Trash from "phosphor-svelte/lib/Trash";
 
+	import { pauseProfileRendering, resumeProfileRendering } from "$lib/profileRendering";
+
 	import { invoke } from "@tauri-apps/api/core";
 	import DOMPurify from "dompurify";
 	import { onMount } from "svelte";
@@ -41,13 +43,13 @@
 	const ALLOWED_EXTENSIONS = new Set(["png", "jpg", "jpeg", "bmp", "svg"]);
 	const ALLOWED_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/bmp", "image/x-ms-bmp", "image/svg+xml"]);
 	// AKP05E_552A mask and startup image share one 810 × 470 coordinate space.
-	// The visible apertures are 130 × 130 even though the device protocol also
+	// The visible key apertures are 120 × 120 even though the device protocol also
 	// accepts larger per-surface payloads. The touch display is one continuous
 	// 810 × 130 strip; its four action zones are not separate physical screens.
 	const AKP05_MASK = {
 		width: 810,
 		height: 470,
-		keySize: 130,
+		keySize: 120,
 		keyX: [0, 170, 340, 510, 680],
 		keyY: [0, 170],
 		touchStrip: { x: 0, y: 340, width: 810, height: 130 },
@@ -77,6 +79,7 @@
 	let applying = false;
 	let successMessage = "";
 	let errorMessage = "";
+	let disposed = false;
 	let lastDeviceId = "";
 	let loadGeneration = 0;
 	let dragPointerId: number | undefined;
@@ -127,10 +130,14 @@
 	}
 
 	onMount(() => {
+		disposed = false;
 		const resizeObserver = new ResizeObserver(updatePreviewDisplaySize);
 		resizeObserver.observe(previewPanel);
 		updatePreviewDisplaySize();
-		return () => resizeObserver.disconnect();
+		return () => {
+			disposed = true;
+			resizeObserver.disconnect();
+		};
 	});
 
 	function clearEditor() {
@@ -488,18 +495,24 @@
 		applying = true;
 		successMessage = "";
 		errorMessage = "";
+		const deviceId = device.id;
+		const deviceName = device.name;
 		const revisionToSave = revision;
 		let projectSaved = false;
+		let profileRenderingPaused = false;
 		try {
-			await invoke("save_startup_image_project", { device: device.id, project: persistedProject() });
+			await invoke("save_startup_image_project", { device: deviceId, project: persistedProject() });
 			projectSaved = true;
 			if (revision == revisionToSave) savedRevision = revisionToSave;
+			if (disposed || device.id != deviceId) return;
 
 			const output = document.createElement("canvas");
 			drawComposedImage(output, layers, startupImage);
-			await invoke("set_startup_image", { device: device.id, image: output.toDataURL("image/jpeg", 0.92) });
-			successMessage = `Saved and applied to ${device.name}.`;
+			profileRenderingPaused = pauseProfileRendering(deviceId);
+			await invoke("set_startup_image", { device: deviceId, image: output.toDataURL("image/jpeg", 0.92) });
+			successMessage = `Saved and applied to ${deviceName}.`;
 		} catch (error) {
+			if (profileRenderingPaused) resumeProfileRendering(deviceId);
 			errorMessage = projectSaved ? `Saved, but could not apply to the device: ${String(error)}` : `Unable to save startup image: ${String(error)}`;
 		} finally {
 			applying = false;

@@ -3336,6 +3336,7 @@ dependencies = [
  "tiny_http",
  "tokio",
  "tokio-tungstenite",
+ "toml 0.9.12+spec-1.1.0",
  "urlencoding",
  "windows-sys 0.60.2",
  "zip",

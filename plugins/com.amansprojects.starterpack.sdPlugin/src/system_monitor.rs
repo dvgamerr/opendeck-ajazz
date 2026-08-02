@@ -23,6 +23,8 @@ const HISTORY_LENGTH: usize = 30;
 struct MonitorSnapshot {
 	cpu: u8,
 	gpu: Option<u8>,
+	cpu_temperature: Option<u8>,
+	gpu_temperature: Option<u8>,
 	memory: u8,
 	memory_total_mib: u64,
 	memory_available_mib: u64,
@@ -50,17 +52,105 @@ enum DisplayMode {
 	Full,
 }
 
-impl DisplayMode {
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum DisplayMetric {
+	#[default]
+	Overview,
+	Cpu,
+	Gpu,
+	Memory,
+	CpuTemperature,
+	GpuTemperature,
+}
+
+impl DisplayMetric {
+	fn from_value(value: Option<&SettingsValue>) -> Self {
+		match value.and_then(SettingsValue::as_str) {
+			Some("cpu") => Self::Cpu,
+			Some("gpu") => Self::Gpu,
+			Some("memory" | "ram") => Self::Memory,
+			Some("cpu-temperature" | "cpu_temp") => Self::CpuTemperature,
+			Some("gpu-temperature" | "gpu_temp") => Self::GpuTemperature,
+			_ => Self::Overview,
+		}
+	}
+
+	fn label(self) -> &'static str {
+		match self {
+			Self::Overview => "SYSTEM",
+			Self::Cpu => "CPU USAGE",
+			Self::Gpu => "GPU USAGE",
+			Self::Memory => "MEMORY",
+			Self::CpuTemperature => "CPU TEMP",
+			Self::GpuTemperature => "GPU TEMP",
+		}
+	}
+
+	fn short_label(self) -> &'static str {
+		match self {
+			Self::Overview => "SYS",
+			Self::Cpu => "CPU",
+			Self::Gpu => "GPU",
+			Self::Memory => "RAM",
+			Self::CpuTemperature => "CPU TEMP",
+			Self::GpuTemperature => "GPU TEMP",
+		}
+	}
+
+	fn color(self) -> &'static str {
+		match self {
+			Self::Overview | Self::Cpu => "#20e3ff",
+			Self::Gpu => "#ff4fd8",
+			Self::Memory => "#facc15",
+			Self::CpuTemperature => "#fb923c",
+			Self::GpuTemperature => "#a3e635",
+		}
+	}
+
+	fn value(self, snapshot: &MonitorSnapshot) -> Option<u8> {
+		match self {
+			Self::Overview => None,
+			Self::Cpu => Some(snapshot.cpu),
+			Self::Gpu => snapshot.gpu,
+			Self::Memory => Some(snapshot.memory),
+			Self::CpuTemperature => snapshot.cpu_temperature,
+			Self::GpuTemperature => snapshot.gpu_temperature,
+		}
+	}
+
+	fn formatted_value(self, snapshot: &MonitorSnapshot) -> String {
+		self.value(snapshot)
+			.map(|value| {
+				if matches!(self, Self::CpuTemperature | Self::GpuTemperature) {
+					format!("{value} C")
+				} else {
+					format!("{value}%")
+				}
+			})
+			.unwrap_or_else(|| "--".to_owned())
+	}
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct MonitorSettings {
+	mode: DisplayMode,
+	metric: DisplayMetric,
+}
+
+impl MonitorSettings {
 	fn from_settings(settings: &SettingsValue) -> Self {
-		match settings
-			.as_object()
+		let settings = settings.as_object();
+		let mode = match settings
 			.and_then(|settings| settings.get("mode"))
 			.and_then(SettingsValue::as_str)
 		{
-			Some("compact" | "mini") => Self::Compact,
-			Some("full") => Self::Full,
-			_ => Self::Normal,
-		}
+			Some("compact" | "mini") => DisplayMode::Compact,
+			Some("full") => DisplayMode::Full,
+			_ => DisplayMode::Normal,
+		};
+		let metric =
+			DisplayMetric::from_value(settings.and_then(|settings| settings.get("metric")));
+		Self { mode, metric }
 	}
 }
 
@@ -68,6 +158,8 @@ impl DisplayMode {
 struct HistoryPoint {
 	cpu: u8,
 	gpu: Option<u8>,
+	cpu_temperature: Option<u8>,
+	gpu_temperature: Option<u8>,
 	memory: u8,
 }
 
@@ -76,6 +168,8 @@ impl From<&MonitorSnapshot> for HistoryPoint {
 		Self {
 			cpu: snapshot.cpu,
 			gpu: snapshot.gpu,
+			cpu_temperature: snapshot.cpu_temperature,
+			gpu_temperature: snapshot.gpu_temperature,
 			memory: snapshot.memory,
 		}
 	}
@@ -88,7 +182,8 @@ struct RenderState {
 }
 
 static LIVE: LazyLock<Mutex<LiveAction>> = LazyLock::new(Default::default);
-static MODES: LazyLock<Mutex<HashMap<String, DisplayMode>>> = LazyLock::new(Default::default);
+static SETTINGS: LazyLock<Mutex<HashMap<String, MonitorSettings>>> =
+	LazyLock::new(Default::default);
 static LAST_STATE: LazyLock<Mutex<Option<RenderState>>> = LazyLock::new(Default::default);
 
 fn meter(label: &str, value: Option<u8>, color: &str, y: u8) -> String {
@@ -99,8 +194,8 @@ fn meter(label: &str, value: Option<u8>, color: &str, y: u8) -> String {
 	let value = value
 		.map(|value| format!("{value}%"))
 		.unwrap_or_else(|| "--".to_owned());
-	let label = text_path(label, 20.0, y + 12, 9, color);
-	let value = text_path(&value, 47.0, y + 26, 15, "#f8fafc");
+	let label = text_path(label, 20.0, y + 13, 10, color);
+	let value = text_path(&value, 47.0, y + 27, 16, "#f8fafc");
 	let mut bars = String::with_capacity(SEGMENTS * 70);
 	for index in 0..SEGMENTS {
 		let x = 66 + index * 9;
@@ -110,11 +205,7 @@ fn meter(label: &str, value: Option<u8>, color: &str, y: u8) -> String {
 			y + 8
 		));
 	}
-	format!(
-		r##"<rect x="2" y="{y}" width="172" height="34" fill="#080b10"/>
-<rect x="2" y="{y}" width="3" height="34" fill="{color}"/>
-{label}{value}{bars}"##
-	)
+	format!("{label}{value}{bars}")
 }
 
 fn medium_image(snapshot: &MonitorSnapshot) -> String {
@@ -132,12 +223,12 @@ fn medium_image(snapshot: &MonitorSnapshot) -> String {
 
 fn compact_image(snapshot: &MonitorSnapshot) -> String {
 	let labels = [
-		text_path("CPU", 29.0, 44, 12, "#20e3ff"),
-		text_path("GPU", 88.0, 44, 12, "#ff4fd8"),
-		text_path("MEM", 147.0, 44, 12, "#facc15"),
+		text_path("CPU", 29.0, 44, 13, "#20e3ff"),
+		text_path("GPU", 88.0, 44, 13, "#ff4fd8"),
+		text_path("MEM", 147.0, 44, 13, "#facc15"),
 	];
 	let values = [
-		text_path(&format!("{}%", snapshot.cpu), 29.0, 72, 16, "#f8fafc"),
+		text_path(&format!("{}%", snapshot.cpu), 29.0, 73, 18, "#f8fafc"),
 		text_path(
 			&snapshot
 				.gpu
@@ -145,14 +236,14 @@ fn compact_image(snapshot: &MonitorSnapshot) -> String {
 				.unwrap_or_else(|| "--".to_owned()),
 			88.0,
 			72,
-			16,
+			18,
 			"#f8fafc",
 		),
 		text_path(
 			&format!("{}GB", (snapshot.memory_used_mib() + 512) / 1024),
 			147.0,
 			72,
-			16,
+			18,
 			"#f8fafc",
 		),
 	];
@@ -175,7 +266,7 @@ fn chart_fragment(history: &VecDeque<HistoryPoint>) -> Option<String> {
 	let mut svg = String::new();
 	{
 		let root = SVGBackend::with_string(&mut svg, (172, 43)).into_drawing_area();
-		root.fill(&RGBColor(4, 8, 14)).ok()?;
+		root.fill(&RGBColor(0, 0, 0)).ok()?;
 		let mut chart = ChartBuilder::on(&root)
 			.margin(1)
 			.build_cartesian_2d(0i32..(HISTORY_LENGTH as i32 - 1), 0i32..100i32)
@@ -214,14 +305,53 @@ fn chart_fragment(history: &VecDeque<HistoryPoint>) -> Option<String> {
 	Some(svg[start..end].to_owned())
 }
 
+fn metric_chart_fragment(
+	history: &VecDeque<HistoryPoint>,
+	metric: DisplayMetric,
+) -> Option<String> {
+	let mut svg = String::new();
+	{
+		let root = SVGBackend::with_string(&mut svg, (168, 64)).into_drawing_area();
+		root.fill(&RGBColor(0, 0, 0)).ok()?;
+		let mut chart = ChartBuilder::on(&root)
+			.margin(1)
+			.build_cartesian_2d(0i32..(HISTORY_LENGTH as i32 - 1), 0i32..100i32)
+			.ok()?;
+		let offset = HISTORY_LENGTH.saturating_sub(history.len());
+		let points = history.iter().enumerate().filter_map(|(index, point)| {
+			let value = match metric {
+				DisplayMetric::Cpu => Some(point.cpu),
+				DisplayMetric::Gpu => point.gpu,
+				DisplayMetric::Memory => Some(point.memory),
+				DisplayMetric::CpuTemperature => point.cpu_temperature,
+				DisplayMetric::GpuTemperature => point.gpu_temperature,
+				DisplayMetric::Overview => None,
+			};
+			value.map(|value| ((offset + index) as i32, i32::from(value.min(100))))
+		});
+		let color = match metric {
+			DisplayMetric::Gpu => RGBColor(255, 79, 216),
+			DisplayMetric::Memory => RGBColor(250, 204, 21),
+			DisplayMetric::CpuTemperature => RGBColor(251, 146, 60),
+			DisplayMetric::GpuTemperature => RGBColor(163, 230, 53),
+			_ => RGBColor(32, 227, 255),
+		};
+		chart.draw_series(LineSeries::new(points, color)).ok()?;
+		root.present().ok()?;
+	}
+	let start = svg.find('>')? + 1;
+	let end = svg.rfind("</svg>")?;
+	Some(svg[start..end].to_owned())
+}
+
 fn full_image(snapshot: &MonitorSnapshot, history: &VecDeque<HistoryPoint>) -> String {
 	let headings = [
-		text_path("CPU", 29.0, 9, 7, "#20e3ff"),
-		text_path("GPU", 88.0, 9, 7, "#ff4fd8"),
-		text_path("RAM", 147.0, 9, 7, "#facc15"),
+		text_path("CPU", 29.0, 10, 8, "#20e3ff"),
+		text_path("GPU", 88.0, 10, 8, "#ff4fd8"),
+		text_path("RAM", 147.0, 10, 8, "#facc15"),
 	];
 	let values = [
-		text_path(&format!("{}%", snapshot.cpu), 29.0, 22, 10, "#f8fafc"),
+		text_path(&format!("{}%", snapshot.cpu), 29.0, 23, 11, "#f8fafc"),
 		text_path(
 			&snapshot
 				.gpu
@@ -229,10 +359,10 @@ fn full_image(snapshot: &MonitorSnapshot, history: &VecDeque<HistoryPoint>) -> S
 				.unwrap_or_else(|| "--".to_owned()),
 			88.0,
 			22,
-			10,
+			11,
 			"#f8fafc",
 		),
-		text_path(&format!("{}%", snapshot.memory), 147.0, 22, 10, "#f8fafc"),
+		text_path(&format!("{}%", snapshot.memory), 147.0, 23, 11, "#f8fafc"),
 	];
 	let ram = text_path(
 		&format!(
@@ -273,7 +403,6 @@ fn full_image(snapshot: &MonitorSnapshot, history: &VecDeque<HistoryPoint>) -> S
 <rect width="176" height="112" fill="#000"/>
 {}{}
 <svg x="2" y="27" width="172" height="43" viewBox="0 0 172 43">{chart}</svg>
-<rect x="2" y="27" width="172" height="43" fill="none" stroke="#1e293b"/>
 {ram}{free}{page}
 </svg>"##,
 		headings.concat(),
@@ -281,15 +410,77 @@ fn full_image(snapshot: &MonitorSnapshot, history: &VecDeque<HistoryPoint>) -> S
 	))
 }
 
-fn monitor_image(
+fn single_compact_image(snapshot: &MonitorSnapshot, metric: DisplayMetric) -> String {
+	let color = metric.color();
+	let label = text_path(metric.label(), 88.0, 34, 16, color);
+	let value = text_path(&metric.formatted_value(snapshot), 88.0, 82, 40, "#f8fafc");
+	data_uri(&format!(
+		r##"<svg xmlns="http://www.w3.org/2000/svg" width="176" height="112" viewBox="0 0 176 112" shape-rendering="crispEdges">
+<rect width="176" height="112" fill="#000"/>
+{label}{value}
+</svg>"##
+	))
+}
+
+fn single_normal_image(snapshot: &MonitorSnapshot, metric: DisplayMetric) -> String {
+	const SEGMENTS: usize = 14;
+	let color = metric.color();
+	let raw_value = metric.value(snapshot);
+	let active = raw_value
+		.map(|value| (usize::from(value.min(100)) * SEGMENTS).div_ceil(100))
+		.unwrap_or_default();
+	let label = text_path(metric.label(), 88.0, 29, 16, color);
+	let value = text_path(&metric.formatted_value(snapshot), 88.0, 73, 34, "#f8fafc");
+	let mut bars = String::with_capacity(SEGMENTS * 70);
+	for index in 0..SEGMENTS {
+		let x = 8 + index * 12;
+		let fill = if index < active { color } else { "#171c24" };
+		bars.push_str(&format!(
+			r##"<rect x="{x}" y="88" width="9" height="16" fill="{fill}"/>"##
+		));
+	}
+	data_uri(&format!(
+		r##"<svg xmlns="http://www.w3.org/2000/svg" width="176" height="112" viewBox="0 0 176 112" shape-rendering="crispEdges">
+<rect width="176" height="112" fill="#000"/>
+{label}{value}{bars}
+</svg>"##
+	))
+}
+
+fn single_full_image(
 	snapshot: &MonitorSnapshot,
-	mode: DisplayMode,
+	metric: DisplayMetric,
 	history: &VecDeque<HistoryPoint>,
 ) -> String {
-	match mode {
-		DisplayMode::Compact => compact_image(snapshot),
-		DisplayMode::Normal => medium_image(snapshot),
-		DisplayMode::Full => full_image(snapshot, history),
+	let color = metric.color();
+	let label = text_path(metric.short_label(), 38.0, 22, 11, color);
+	let value = text_path(&metric.formatted_value(snapshot), 126.0, 25, 22, "#f8fafc");
+	let chart = metric_chart_fragment(history, metric).unwrap_or_default();
+	data_uri(&format!(
+		r##"<svg xmlns="http://www.w3.org/2000/svg" width="176" height="112" viewBox="0 0 176 112">
+<rect width="176" height="112" fill="#000"/>
+{label}{value}
+<svg x="4" y="42" width="168" height="64" viewBox="0 0 168 64">{chart}</svg>
+</svg>"##
+	))
+}
+
+fn monitor_image(
+	snapshot: &MonitorSnapshot,
+	settings: MonitorSettings,
+	history: &VecDeque<HistoryPoint>,
+) -> String {
+	if settings.metric == DisplayMetric::Overview {
+		return match settings.mode {
+			DisplayMode::Compact => compact_image(snapshot),
+			DisplayMode::Normal => medium_image(snapshot),
+			DisplayMode::Full => full_image(snapshot, history),
+		};
+	}
+	match settings.mode {
+		DisplayMode::Compact => single_compact_image(snapshot, settings.metric),
+		DisplayMode::Normal => single_normal_image(snapshot, settings.metric),
+		DisplayMode::Full => single_full_image(snapshot, settings.metric, history),
 	}
 }
 
@@ -299,7 +490,6 @@ fn loading_image() -> String {
 	data_uri(&format!(
 		r##"<svg xmlns="http://www.w3.org/2000/svg" width="176" height="112" viewBox="0 0 176 112" shape-rendering="crispEdges">
 <rect width="176" height="112" fill="#000"/>
-<path d="M32 28h8v-8h96v8h8v56h-8v8H40v-8h-8z" fill="#080b10" stroke="#20e3ff" stroke-width="2"/>
 {title}{status}
 </svg>"##
 	))
@@ -316,11 +506,11 @@ async fn render(mut receiver: mpsc::Receiver<MonitorSnapshot>) {
 			snapshot: snapshot.clone(),
 			history: history.clone(),
 		});
-		let modes = MODES.lock().unwrap().clone();
+		let settings = SETTINGS.lock().unwrap().clone();
 		if let Err(error) = live::broadcast_mapped(&LIVE, |context| {
 			monitor_image(
 				&snapshot,
-				modes.get(context).copied().unwrap_or_default(),
+				settings.get(context).copied().unwrap_or_default(),
 				&history,
 			)
 		})
@@ -337,10 +527,10 @@ pub async fn appear(
 	settings: SettingsValue,
 	outbound: &mut OutboundEventManager,
 ) -> EventHandlerResult {
-	MODES
+	SETTINGS
 		.lock()
 		.unwrap()
-		.insert(context.clone(), DisplayMode::from_settings(&settings));
+		.insert(context.clone(), MonitorSettings::from_settings(&settings));
 	outbound
 		.set_image(context.clone(), Some(loading_image()), None)
 		.await?;
@@ -381,14 +571,14 @@ pub async fn refresh(
 	settings: SettingsValue,
 	outbound: &mut OutboundEventManager,
 ) -> EventHandlerResult {
-	let mode = DisplayMode::from_settings(&settings);
-	MODES.lock().unwrap().insert(context.clone(), mode);
+	let settings = MonitorSettings::from_settings(&settings);
+	SETTINGS.lock().unwrap().insert(context.clone(), settings);
 	let state = LAST_STATE.lock().unwrap().clone();
 	if let Some(state) = state {
 		outbound
 			.set_image(
 				context,
-				Some(monitor_image(&state.snapshot, mode, &state.history)),
+				Some(monitor_image(&state.snapshot, settings, &state.history)),
 				None,
 			)
 			.await?;
@@ -397,14 +587,22 @@ pub async fn refresh(
 }
 
 pub fn disappear(context: &str) {
-	MODES.lock().unwrap().remove(context);
+	SETTINGS.lock().unwrap().remove(context);
 	LIVE.lock().unwrap().unsubscribe(context);
 }
 
 #[cfg(windows)]
 mod platform {
 	use super::MonitorSnapshot;
-	use std::{collections::HashMap, mem::MaybeUninit};
+	use std::{
+		collections::HashMap,
+		mem::MaybeUninit,
+		os::windows::process::CommandExt,
+		process::{Command, Stdio},
+		sync::mpsc::{self, Receiver, Sender},
+		thread,
+		time::{Duration, Instant},
+	};
 	use windows::{
 		Win32::{
 			Foundation::FILETIME,
@@ -448,6 +646,130 @@ mod platform {
 
 	fn filetime(value: FILETIME) -> u64 {
 		(u64::from(value.dwHighDateTime) << 32) | u64::from(value.dwLowDateTime)
+	}
+
+	const TEMPERATURE_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
+	const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+	const TEMPERATURE_SCRIPT: &str = r#"
+$ErrorActionPreference = 'SilentlyContinue'
+$cpu = $null
+$gpu = $null
+
+foreach ($namespace in @('root\LibreHardwareMonitor', 'root\OpenHardwareMonitor')) {
+	$sensors = @(Get-CimInstance -Namespace $namespace -ClassName Sensor -Filter "SensorType = 'Temperature'" -ErrorAction SilentlyContinue)
+	if ($sensors.Count -eq 0) { continue }
+
+	$cpuSensors = @($sensors | Where-Object { "$($_.Identifier) $($_.Parent)" -match '(?i)/(intel|amd)?cpu|cpu/' })
+	$preferredCpu = @($cpuSensors | Where-Object { $_.Name -match '(?i)package|tctl|tdie|core max|cpu' })
+	if ($preferredCpu.Count -eq 0) { $preferredCpu = $cpuSensors }
+	if ($preferredCpu.Count -gt 0) {
+		$cpu = [Math]::Round(($preferredCpu | Measure-Object -Property Value -Maximum).Maximum)
+	}
+
+	$gpuSensors = @($sensors | Where-Object { "$($_.Identifier) $($_.Parent)" -match '(?i)/(nvidia|amd|intel)?gpu|gpu/' })
+	$preferredGpu = @($gpuSensors | Where-Object { $_.Name -match '(?i)gpu core|core|gpu temperature' })
+	if ($preferredGpu.Count -eq 0) { $preferredGpu = $gpuSensors }
+	if ($preferredGpu.Count -gt 0) {
+		$gpu = [Math]::Round(($preferredGpu | Measure-Object -Property Value -Maximum).Maximum)
+	}
+	if ($null -ne $cpu -and $null -ne $gpu) { break }
+}
+
+if ($null -eq $cpu) {
+	$zones = @(Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction SilentlyContinue)
+	$values = @($zones | ForEach-Object { ($_.CurrentTemperature / 10.0) - 273.15 } | Where-Object { $_ -ge 0 -and $_ -le 150 })
+	if ($values.Count -gt 0) { $cpu = [Math]::Round(($values | Measure-Object -Maximum).Maximum) }
+}
+
+if ($null -eq $gpu) {
+	$nvidiaSmi = Get-Command nvidia-smi -ErrorAction SilentlyContinue
+	if ($null -ne $nvidiaSmi) {
+		$values = @(& $nvidiaSmi.Source --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>$null | ForEach-Object { [double]$_ })
+		if ($LASTEXITCODE -eq 0 -and $values.Count -gt 0) { $gpu = [Math]::Round(($values | Measure-Object -Maximum).Maximum) }
+	}
+}
+
+[Console]::Write("$cpu|$gpu")
+"#;
+
+	struct TemperatureQuery {
+		last_launch: Option<Instant>,
+		cpu: Option<u8>,
+		gpu: Option<u8>,
+		in_flight: bool,
+		sender: Sender<(Option<u8>, Option<u8>)>,
+		receiver: Receiver<(Option<u8>, Option<u8>)>,
+	}
+
+	impl TemperatureQuery {
+		fn new() -> Self {
+			let (sender, receiver) = mpsc::channel();
+			Self {
+				last_launch: None,
+				cpu: None,
+				gpu: None,
+				in_flight: false,
+				sender,
+				receiver,
+			}
+		}
+
+		fn sample(&mut self) -> (Option<u8>, Option<u8>) {
+			while let Ok((cpu, gpu)) = self.receiver.try_recv() {
+				self.cpu = cpu;
+				self.gpu = gpu;
+				self.in_flight = false;
+			}
+			let refresh_due = self
+				.last_launch
+				.is_none_or(|last| last.elapsed() >= TEMPERATURE_REFRESH_INTERVAL);
+			if refresh_due && !self.in_flight {
+				let sender = self.sender.clone();
+				self.last_launch = Some(Instant::now());
+				self.in_flight = thread::Builder::new()
+					.name("system-monitor-temperature".to_owned())
+					.spawn(move || {
+						let _ = sender.send(query_temperatures());
+					})
+					.is_ok();
+			}
+			(self.cpu, self.gpu)
+		}
+	}
+
+	fn query_temperatures() -> (Option<u8>, Option<u8>) {
+		let output = Command::new("powershell.exe")
+			.args([
+				"-NoLogo",
+				"-NoProfile",
+				"-NonInteractive",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				TEMPERATURE_SCRIPT,
+			])
+			.stdin(Stdio::null())
+			.stderr(Stdio::null())
+			.creation_flags(CREATE_NO_WINDOW)
+			.output();
+		let Some(output) = output.ok().filter(|output| output.status.success()) else {
+			return (None, None);
+		};
+		let output = String::from_utf8_lossy(&output.stdout);
+		let mut values = output.trim().split('|');
+		(
+			parse_temperature(values.next()),
+			parse_temperature(values.next()),
+		)
+	}
+
+	fn parse_temperature(value: Option<&str>) -> Option<u8> {
+		value?
+			.trim()
+			.parse::<f32>()
+			.ok()
+			.filter(|value| value.is_finite() && (0.0..=150.0).contains(value))
+			.map(|value| value.round() as u8)
 	}
 
 	struct GpuQuery {
@@ -569,6 +891,7 @@ mod platform {
 	pub struct Sampler {
 		previous_cpu: CpuTimes,
 		gpu: Option<GpuQuery>,
+		temperature: TemperatureQuery,
 	}
 
 	impl Sampler {
@@ -576,6 +899,7 @@ mod platform {
 			Self {
 				previous_cpu: CpuTimes::read().unwrap_or_default(),
 				gpu: GpuQuery::new(),
+				temperature: TemperatureQuery::new(),
 			}
 		}
 
@@ -617,10 +941,13 @@ mod platform {
 				(0, 0, 0, 0, 0)
 			};
 			let gpu = self.gpu.as_mut().and_then(GpuQuery::sample);
+			let (cpu_temperature, gpu_temperature) = self.temperature.sample();
 
 			MonitorSnapshot {
 				cpu,
 				gpu,
+				cpu_temperature,
+				gpu_temperature,
 				memory,
 				memory_total_mib,
 				memory_available_mib,
@@ -646,6 +973,8 @@ mod platform {
 			MonitorSnapshot {
 				cpu: 0,
 				gpu: None,
+				cpu_temperature: None,
+				gpu_temperature: None,
 				memory: 0,
 				memory_total_mib: 0,
 				memory_available_mib: 0,
@@ -658,13 +987,17 @@ mod platform {
 
 #[cfg(test)]
 mod tests {
-	use super::{DisplayMode, HistoryPoint, MonitorSnapshot, monitor_image};
+	use super::{
+		DisplayMetric, DisplayMode, HistoryPoint, MonitorSettings, MonitorSnapshot, monitor_image,
+	};
 	use std::collections::VecDeque;
 
 	fn snapshot() -> MonitorSnapshot {
 		MonitorSnapshot {
 			cpu: 23,
 			gpu: Some(67),
+			cpu_temperature: Some(58),
+			gpu_temperature: Some(71),
 			memory: 81,
 			memory_total_mib: 32 * 1024,
 			memory_available_mib: 6 * 1024,
@@ -680,7 +1013,7 @@ mod tests {
 	#[test]
 	fn image_is_native_pixel_art_with_all_three_metrics() {
 		let snapshot = snapshot();
-		let image = monitor_image(&snapshot, DisplayMode::Normal, &history(&snapshot));
+		let image = monitor_image(&snapshot, MonitorSettings::default(), &history(&snapshot));
 
 		assert!(image.starts_with("data:image/svg+xml,"));
 		assert!(image.contains("width%3D%22176%22"));
@@ -697,13 +1030,15 @@ mod tests {
 		let snapshot = MonitorSnapshot {
 			cpu: 1,
 			gpu: None,
+			cpu_temperature: None,
+			gpu_temperature: None,
 			memory: 2,
 			memory_total_mib: 16 * 1024,
 			memory_available_mib: 12 * 1024,
 			pagefile_total_mib: 20 * 1024,
 			pagefile_available_mib: 10 * 1024,
 		};
-		let image = monitor_image(&snapshot, DisplayMode::Normal, &history(&snapshot));
+		let image = monitor_image(&snapshot, MonitorSettings::default(), &history(&snapshot));
 		assert!(image.len() < 50_000);
 	}
 
@@ -711,8 +1046,22 @@ mod tests {
 	fn compact_mode_stays_compact_and_full_mode_contains_plotters_lines() {
 		let snapshot = snapshot();
 		let history = history(&snapshot);
-		let compact = monitor_image(&snapshot, DisplayMode::Compact, &history);
-		let full = monitor_image(&snapshot, DisplayMode::Full, &history);
+		let compact = monitor_image(
+			&snapshot,
+			MonitorSettings {
+				mode: DisplayMode::Compact,
+				..Default::default()
+			},
+			&history,
+		);
+		let full = monitor_image(
+			&snapshot,
+			MonitorSettings {
+				mode: DisplayMode::Full,
+				..Default::default()
+			},
+			&history,
+		);
 
 		assert!(compact.len() < 30_000);
 		assert!(full.contains("%3Cpolyline") || full.contains("%3Cpath"));
@@ -722,25 +1071,44 @@ mod tests {
 	#[test]
 	fn display_mode_settings_accept_current_and_legacy_names() {
 		assert_eq!(
-			DisplayMode::from_settings(&serde_json::json!({ "mode": "compact" })),
+			MonitorSettings::from_settings(&serde_json::json!({ "mode": "compact" })).mode,
 			DisplayMode::Compact
 		);
 		assert_eq!(
-			DisplayMode::from_settings(&serde_json::json!({ "mode": "normal" })),
+			MonitorSettings::from_settings(&serde_json::json!({ "mode": "normal" })).mode,
 			DisplayMode::Normal
 		);
 		assert_eq!(
-			DisplayMode::from_settings(&serde_json::json!({ "mode": "full" })),
+			MonitorSettings::from_settings(&serde_json::json!({ "mode": "full" })).mode,
 			DisplayMode::Full
 		);
 		assert_eq!(
-			DisplayMode::from_settings(&serde_json::json!({ "mode": "mini" })),
+			MonitorSettings::from_settings(&serde_json::json!({ "mode": "mini" })).mode,
 			DisplayMode::Compact
 		);
 		assert_eq!(
-			DisplayMode::from_settings(&serde_json::json!({ "mode": "medium" })),
+			MonitorSettings::from_settings(&serde_json::json!({ "mode": "medium" })).mode,
 			DisplayMode::Normal
 		);
+	}
+
+	#[test]
+	fn metric_settings_render_large_temperature_views() {
+		let snapshot = snapshot();
+		let history = history(&snapshot);
+		let settings = MonitorSettings::from_settings(&serde_json::json!({
+			"mode": "normal",
+			"metric": "cpu-temperature"
+		}));
+		assert_eq!(settings.metric, DisplayMetric::CpuTemperature);
+		let image = monitor_image(&snapshot, settings, &history);
+
+		assert!(image.contains("%23fb923c"));
+		assert!(image.contains("width%3D%229%22%20height%3D%2216%22"));
+		assert!(!image.contains("%23080b10"));
+		assert!(!image.contains("%23202938"));
+		assert!(!image.contains("%231e293b"));
+		assert!(image.len() < 40_000);
 	}
 
 	#[cfg(windows)]
@@ -753,5 +1121,7 @@ mod tests {
 		assert!(snapshot.cpu <= 100);
 		assert!((1..=100).contains(&snapshot.memory));
 		assert!(snapshot.gpu.is_none_or(|value| value <= 100));
+		assert!(snapshot.cpu_temperature.is_none_or(|value| value <= 150));
+		assert!(snapshot.gpu_temperature.is_none_or(|value| value <= 150));
 	}
 }

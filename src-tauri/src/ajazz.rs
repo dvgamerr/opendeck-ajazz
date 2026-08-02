@@ -1,20 +1,37 @@
 use crate::events::outbound::{encoder, keypad};
 
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use std::time::Duration;
 
 use ajazz_sdk::{AjazzError, Event, Kind, asynchronous::AsyncAjazz};
 use base64::Engine as _;
+use dashmap::DashMap;
 use once_cell::sync::Lazy;
 use tokio::sync::RwLock;
 use tokio::time::Instant;
 
 static AJAZZ_DEVICES: Lazy<RwLock<HashMap<String, AsyncAjazz>>> = Lazy::new(|| RwLock::new(HashMap::new()));
 static MANAGED_DEVICES: Lazy<RwLock<HashSet<String>>> = Lazy::new(|| RwLock::new(HashSet::new()));
+static PROFILE_RENDERING_GATES: Lazy<DashMap<String, Arc<RwLock<bool>>>> = Lazy::new(DashMap::new);
 const INPUT_READ_TIMEOUT: Duration = Duration::from_millis(50);
 const KEEP_ALIVE_INTERVAL: Duration = Duration::from_secs(10);
 
+fn profile_rendering_gate(id: &str) -> Arc<RwLock<bool>> {
+	PROFILE_RENDERING_GATES.entry(id.to_owned()).or_insert_with(|| Arc::new(RwLock::new(false))).clone()
+}
+
+pub async fn resume_profile_rendering(id: &str) {
+	*profile_rendering_gate(id).write().await = false;
+}
+
 pub async fn update_image(context: &crate::shared::Context, image: Option<&str>) -> Result<(), anyhow::Error> {
+	let rendering_gate = profile_rendering_gate(&context.device);
+	let rendering_paused = rendering_gate.read().await;
+	if *rendering_paused {
+		return Ok(());
+	}
+
 	if let Some(device) = AJAZZ_DEVICES.read().await.get(&context.device) {
 		if let Some(image) = image {
 			let data = image.split_once(',').unwrap().1;
@@ -35,6 +52,12 @@ pub async fn update_image(context: &crate::shared::Context, image: Option<&str>)
 }
 
 pub async fn clear_screen(id: &str) -> Result<(), anyhow::Error> {
+	let rendering_gate = profile_rendering_gate(id);
+	let rendering_paused = rendering_gate.read().await;
+	if *rendering_paused {
+		return Ok(());
+	}
+
 	if let Some(device) = AJAZZ_DEVICES.read().await.get(id) {
 		device.clear_all_button_images().await?;
 		device.flush().await?;
@@ -43,10 +66,20 @@ pub async fn clear_screen(id: &str) -> Result<(), anyhow::Error> {
 }
 
 pub async fn set_startup_image(id: &str, image: image::DynamicImage) -> Result<(), anyhow::Error> {
+	let rendering_gate = profile_rendering_gate(id);
+	let mut rendering_paused = rendering_gate.write().await;
+	let was_paused = *rendering_paused;
+	*rendering_paused = true;
+
 	let devices = AJAZZ_DEVICES.read().await;
-	let device = devices.get(id).ok_or_else(|| anyhow::anyhow!("Device is no longer connected"))?;
-	device.set_logo_image(image).await?;
-	Ok(())
+	let result = match devices.get(id) {
+		Some(device) => device.set_logo_image(image).await.map_err(Into::into),
+		None => Err(anyhow::anyhow!("Device is no longer connected")),
+	};
+	if result.is_err() && !was_paused {
+		*rendering_paused = false;
+	}
+	result
 }
 
 pub async fn set_brightness(brightness: u8) {
