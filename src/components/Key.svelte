@@ -252,7 +252,7 @@
 	export let size = 144;
 	$: canvasWidth = renderWidth ?? size;
 	$: canvasHeight = renderHeight ?? size;
-	$: canvasStyle = resolvedAppearance == "touch" ? "width: 160px; height: 100px;" : `transform: scale(${(112 / size) * scale});`;
+	$: canvasStyle = resolvedAppearance == "touch" ? "width: 160px; height: 100px;" : `box-sizing: content-box; width: ${size}px; height: ${size}px; transform: scale(${(112 / size) * scale});`;
 	$: if (canvas) {
 		if (profileRenderingPaused) {
 			renderGeneration++;

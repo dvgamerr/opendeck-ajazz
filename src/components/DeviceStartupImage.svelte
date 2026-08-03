@@ -43,13 +43,13 @@
 	const ALLOWED_EXTENSIONS = new Set(["png", "jpg", "jpeg", "bmp", "svg"]);
 	const ALLOWED_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/bmp", "image/x-ms-bmp", "image/svg+xml"]);
 	// AKP05E_552A mask and startup image share one 810 × 470 coordinate space.
-	// The visible key apertures are 120 × 120 even though the device protocol also
+	// The visible key apertures are 126 × 126 even though the device protocol also
 	// accepts larger per-surface payloads. The touch display is one continuous
 	// 810 × 130 strip; its four action zones are not separate physical screens.
 	const AKP05_MASK = {
 		width: 810,
 		height: 470,
-		keySize: 120,
+		keySize: 126,
 		keyX: [0, 170, 340, 510, 680],
 		keyY: [0, 170],
 		touchStrip: { x: 0, y: 340, width: 810, height: 130 },

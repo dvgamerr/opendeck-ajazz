@@ -16,6 +16,7 @@
 	export let profile: Profile;
 
 	export let selectedDevice: string;
+	const AKP05_KEY_RENDER_SIZE = 126;
 	const actionMime = "application/x-opendeck-action";
 	const previewShadowGutter = 32;
 	let previewViewport: HTMLDivElement;
@@ -143,6 +144,8 @@
 								on:dragstart={(event) => handleDragStart(event, "Keypad", r * device.columns + c)}
 								{handlePaste}
 								size={device.id.startsWith("sd-") && device.rows == 4 && device.columns == 8 ? 192 : 144}
+								renderWidth={device.type == 7 ? AKP05_KEY_RENDER_SIZE : undefined}
+								renderHeight={device.type == 7 ? AKP05_KEY_RENDER_SIZE : undefined}
 							/>
 						{/each}
 					</div>
