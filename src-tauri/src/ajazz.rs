@@ -84,6 +84,19 @@ pub async fn clear_screen(id: &str) -> Result<(), anyhow::Error> {
 	Ok(())
 }
 
+pub async fn clear_keypad(id: &str) -> Result<(), anyhow::Error> {
+	let rendering_gate = profile_rendering_gate(id);
+	let rendering_paused = rendering_gate.read().await;
+	if *rendering_paused {
+		return Ok(());
+	}
+
+	if let Some(device) = AJAZZ_DEVICES.read().await.get(id) {
+		device.clear_keypad().await?;
+	}
+	Ok(())
+}
+
 pub async fn set_startup_image(id: &str, image: image::DynamicImage) -> Result<(), anyhow::Error> {
 	let rendering_gate = profile_rendering_gate(id);
 	let mut rendering_paused = rendering_gate.write().await;

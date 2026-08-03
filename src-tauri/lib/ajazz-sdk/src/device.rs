@@ -284,6 +284,26 @@ impl Ajazz {
         Ok(())
     }
 
+    /// Clears only keypad displays and commits the clear immediately, leaving
+    /// touch strips and other display surfaces unchanged.
+    pub fn clear_keypad(&self) -> Result<(), AjazzError> {
+        self.initialize()?;
+
+        // Pending images may belong to the profile that is disappearing. Drop
+        // them without clearing the corresponding physical non-keypad surfaces.
+        self.image_cache
+            .write()
+            .map_err(|_| AjazzError::PoisonError)?
+            .clear();
+
+        for key in 0..self.kind.display_key_count() {
+            self.clear_button_image(key)?;
+        }
+        self.flush_batch()?;
+
+        Ok(())
+    }
+
     /// Clears every display surface and commits the clear immediately.
     pub fn clear_screen(&self) -> Result<(), AjazzError> {
         self.clear_all_button_images()?;

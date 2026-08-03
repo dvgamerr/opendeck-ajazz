@@ -186,6 +186,13 @@ impl AsyncAjazz {
         block_in_place(move || device.clear_all_button_images())
     }
 
+    /// Clears only keypad displays and commits the clear while holding the
+    /// device lock once.
+    pub async fn clear_keypad(&self) -> Result<(), AjazzError> {
+        let device = self.device.lock().await;
+        block_in_place(move || device.clear_keypad())
+    }
+
     /// Clears every display surface and commits the clear while holding the
     /// device lock once.
     pub async fn clear_screen(&self) -> Result<(), AjazzError> {
