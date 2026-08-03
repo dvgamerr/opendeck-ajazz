@@ -62,10 +62,12 @@ pub async fn deregister_device(uuid: &str, event: PayloadEvent<String>) -> Resul
 			}
 		}
 
+		// Removing the device while the profile locks are still held prevents a
+		// waiting image/settings event from saving a profile for a stale device.
+		DEVICES.remove(&event.payload);
 		drop(locks);
 
 		let _ = crate::events::outbound::devices::device_did_disconnect(&event.payload).await;
-		DEVICES.remove(&event.payload);
 		crate::events::frontend::update_devices().await;
 
 		Ok(())

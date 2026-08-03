@@ -2,6 +2,7 @@
 //! and so they cannot be used in [current_thread](tokio::runtime::Builder::new_current_thread) runtimes
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use hidapi::{HidApi, HidResult};
@@ -65,6 +66,7 @@ pub struct AsyncAjazz {
     /// Human-readable device product name.
     pub product_name: String,
     device: Arc<Mutex<Ajazz>>,
+    healthy: Arc<AtomicBool>,
 }
 
 /// Static functions of the struct
@@ -82,6 +84,7 @@ impl AsyncAjazz {
             kind,
             product_name,
             device: Arc::new(Mutex::new(device)),
+            healthy: Arc::new(AtomicBool::new(true)),
         })
     }
 
@@ -101,12 +104,29 @@ impl AsyncAjazz {
             kind,
             product_name,
             device: Arc::new(Mutex::new(device)),
+            healthy: Arc::new(AtomicBool::new(true)),
         })
     }
 }
 
 /// Instance methods of the struct
 impl AsyncAjazz {
+    fn record_transport_result<T>(&self, result: &Result<T, AjazzError>) {
+        if matches!(
+            result,
+            Err(AjazzError::HidError(_) | AjazzError::NoAck | AjazzError::DeviceNotFound)
+        ) {
+            self.healthy.store(false, Ordering::Release);
+        }
+    }
+
+    fn ensure_healthy(&self) -> Result<(), AjazzError> {
+        self.healthy
+            .load(Ordering::Acquire)
+            .then_some(())
+            .ok_or(AjazzError::DeviceNotFound)
+    }
+
     /// Returns kind of the Stream Deck
     pub fn kind(&self) -> Kind {
         self.kind
@@ -141,7 +161,10 @@ impl AsyncAjazz {
     pub async fn read_input(&self, poll_rate: f32) -> Result<AjazzInput, AjazzError> {
         loop {
             let device = self.device.lock().await;
-            let data = block_in_place(move || device.read_input(None))?;
+            self.ensure_healthy()?;
+            let result = block_in_place(|| device.read_input(None));
+            self.record_transport_result(&result);
+            let data = result?;
 
             if !data.is_empty() {
                 return Ok(data);
@@ -157,7 +180,10 @@ impl AsyncAjazz {
         timeout: Duration,
     ) -> Result<AjazzInput, AjazzError> {
         let device = self.device.lock().await;
-        block_in_place(move || device.read_input(Some(timeout)))
+        self.ensure_healthy()?;
+        let result = block_in_place(|| device.read_input(Some(timeout)));
+        self.record_transport_result(&result);
+        result
     }
 
     /// Resets the device
@@ -225,6 +251,7 @@ impl AsyncAjazz {
         &self,
         updates: Vec<DeviceImageUpdate>,
     ) -> Result<(), AjazzError> {
+        self.ensure_healthy()?;
         let kind = self.kind;
         let prepared = block_in_place(move || {
             updates
@@ -254,7 +281,8 @@ impl AsyncAjazz {
         })?;
 
         let device = self.device.lock().await;
-        block_in_place(move || {
+        self.ensure_healthy()?;
+        let result = block_in_place(|| {
             for update in prepared {
                 match update {
                     PreparedDeviceImageUpdate::Button {
@@ -276,7 +304,9 @@ impl AsyncAjazz {
                 }
             }
             device.flush_batch()
-        })
+        });
+        self.record_transport_result(&result);
+        result
     }
 
     /// Clears one of the four zones of the AKP05E_552A touchscreen strip.
@@ -300,7 +330,10 @@ impl AsyncAjazz {
     /// Make periodic events to the device, to keep it alive
     pub async fn keep_alive(&self) -> Result<(), AjazzError> {
         let device = self.device.lock().await;
-        block_in_place(move || device.keep_alive())
+        self.ensure_healthy()?;
+        let result = block_in_place(|| device.keep_alive());
+        self.record_transport_result(&result);
+        result
     }
 
     /// Shutdown the device

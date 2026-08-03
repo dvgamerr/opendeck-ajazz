@@ -16,7 +16,9 @@ use crate::{
 };
 
 pub const ACTION: &str = "com.amansprojects.starterpack.systemmonitor";
-const SAMPLE_INTERVAL: Duration = Duration::from_secs(1);
+// Two seconds keeps the dashboard responsive while halving continuous image
+// encoding and USB traffic compared with the previous one-second cadence.
+const SAMPLE_INTERVAL: Duration = Duration::from_secs(2);
 const HISTORY_LENGTH: usize = 30;
 
 #[derive(Clone, Debug, PartialEq)]

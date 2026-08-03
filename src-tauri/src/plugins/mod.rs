@@ -30,6 +30,7 @@ enum PluginInstance {
 
 pub static DEVICE_NAMESPACES: Lazy<RwLock<HashMap<String, String>>> = Lazy::new(|| RwLock::new(HashMap::new()));
 static INSTANCES: Lazy<Mutex<HashMap<String, PluginInstance>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+const MICROSOFT_TEAMS_PLUGIN: &str = "com.microsoft.teams.sdPlugin";
 
 fn should_sync_builtin_plugin(existing_version: &semver::Version, builtin_version: &semver::Version, development: bool) -> bool {
 	development || existing_version < builtin_version
@@ -372,6 +373,27 @@ pub async fn deactivate_plugin(app: &AppHandle, uuid: &str) -> Result<(), anyhow
 		Ok(())
 	} else {
 		Err(anyhow!("instance of plugin {} not found", uuid))
+	}
+}
+
+/// Keep the Microsoft Teams plugin loaded only while the Teams process exists.
+/// Closing its webview also cancels the plugin's internal reconnect timer.
+pub async fn set_microsoft_teams_running(running: bool) -> Result<(), anyhow::Error> {
+	let active = INSTANCES.lock().await.contains_key(MICROSOFT_TEAMS_PLUGIN);
+	if running == active {
+		return Ok(());
+	}
+
+	if running {
+		let path = config_dir().join("plugins").join(MICROSOFT_TEAMS_PLUGIN);
+		if !path.is_dir() {
+			return Ok(());
+		}
+		log::info!("Microsoft Teams started; activating its plugin");
+		initialise_plugin(&path).await
+	} else {
+		log::info!("Microsoft Teams stopped; deactivating its plugin and cancelling reconnects");
+		deactivate_plugin(APP_HANDLE.get().unwrap(), MICROSOFT_TEAMS_PLUGIN).await
 	}
 }
 

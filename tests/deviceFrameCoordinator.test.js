@@ -63,4 +63,28 @@ describe("DeviceFrameCoordinator", () => {
 		assert.equal(batches[1].length, 1);
 		assert.equal(batches[1][0].image, "newer");
 	});
+
+	test("keeps only the latest pending frame while a HID batch is slow", async () => {
+		const batches = [];
+		let releaseFirstBatch;
+		const firstBatchBlocked = new Promise((resolve) => (releaseFirstBatch = resolve));
+		const coordinator = new DeviceFrameCoordinator(async (frames) => {
+			batches.push(frames);
+			if (batches.length === 1) await firstBatchBlocked;
+		}, 10_000, 10_000);
+		coordinator.beginInitialRender("device-a", "Profile A", 1);
+		coordinator.queue({ context: context("Profile A", 0), image: "initial" });
+
+		let finished;
+		for (let index = 0; index < 10_000; index++) {
+			coordinator.queue({ context: context("Profile A", 0), image: `frame-${index}` });
+			finished = coordinator.flushPending("device-a");
+		}
+		releaseFirstBatch();
+		await finished;
+
+		assert.equal(batches.length, 2);
+		assert.equal(batches[1].length, 1);
+		assert.equal(batches[1][0].image, "frame-9999");
+	});
 });

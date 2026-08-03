@@ -13,9 +13,11 @@ type DeviceRenderState = {
 	collectingInitialFrames: boolean;
 	initialFrames: Map<string, DeviceFrame>;
 	liveFrames: Map<string, DeviceFrame>;
+	pendingFrames: Map<string, DeviceFrame>;
 	initialTimer?: ReturnType<typeof setTimeout>;
 	liveTimer?: ReturnType<typeof setTimeout>;
-	sendChain: Promise<void>;
+	drainPromise?: Promise<void>;
+	cancelled: boolean;
 };
 
 const frameKey = (context: Context) => `${context.controller}:${context.position}`;
@@ -38,7 +40,8 @@ export class DeviceFrameCoordinator {
 			collectingInitialFrames: expectedFrames > 0,
 			initialFrames: new Map(),
 			liveFrames: new Map(),
-			sendChain: Promise.resolve(),
+			pendingFrames: new Map(),
+			cancelled: false,
 		};
 		this.states.set(device, state);
 
@@ -57,7 +60,8 @@ export class DeviceFrameCoordinator {
 				collectingInitialFrames: false,
 				initialFrames: new Map(),
 				liveFrames: new Map(),
-				sendChain: Promise.resolve(),
+				pendingFrames: new Map(),
+				cancelled: false,
 			};
 			this.states.set(frame.context.device, state);
 		}
@@ -81,6 +85,10 @@ export class DeviceFrameCoordinator {
 		if (!state) return;
 		if (state.initialTimer !== undefined) clearTimeout(state.initialTimer);
 		if (state.liveTimer !== undefined) clearTimeout(state.liveTimer);
+		state.cancelled = true;
+		state.initialFrames.clear();
+		state.liveFrames.clear();
+		state.pendingFrames.clear();
 		this.states.delete(device);
 	}
 
@@ -89,7 +97,7 @@ export class DeviceFrameCoordinator {
 		if (!state) return;
 		if (state.collectingInitialFrames) this.flushInitial(device, state);
 		else this.flushLive(device, state);
-		await state.sendChain;
+		while (state.drainPromise !== undefined) await state.drainPromise;
 	}
 
 	private flushInitial(device: string, state: DeviceRenderState) {
@@ -112,7 +120,25 @@ export class DeviceFrameCoordinator {
 	}
 
 	private enqueue(state: DeviceRenderState, frames: DeviceFrame[]) {
-		if (frames.length == 0) return;
-		state.sendChain = state.sendChain.then(() => this.sendBatch(frames)).catch(this.reportError);
+		if (state.cancelled || frames.length == 0) return;
+		for (const frame of frames) state.pendingFrames.set(frameKey(frame.context), frame);
+		if (state.drainPromise === undefined) state.drainPromise = this.drain(state);
+	}
+
+	private async drain(state: DeviceRenderState) {
+		try {
+			while (!state.cancelled && state.pendingFrames.size > 0) {
+				const frames = [...state.pendingFrames.values()];
+				state.pendingFrames.clear();
+				try {
+					await this.sendBatch(frames);
+				} catch (error) {
+					this.reportError(error);
+				}
+			}
+		} finally {
+			state.drainPromise = undefined;
+			if (!state.cancelled && state.pendingFrames.size > 0) state.drainPromise = this.drain(state);
+		}
 	}
 }

@@ -1,6 +1,8 @@
 use crate::store::{NotProfile, Store};
 
 use std::collections::HashMap;
+#[cfg(target_os = "windows")]
+use std::ffi::OsStr;
 
 use active_win_pos_rs::get_active_window;
 use once_cell::sync::Lazy;
@@ -17,6 +19,11 @@ pub static APPLICATION_PROFILES: Lazy<RwLock<Store<ApplicationProfiles>>> = Lazy
 pub static APPLICATION_PROCESSES: Lazy<RwLock<HashMap<String, Vec<u32>>>> = Lazy::new(|| RwLock::new(HashMap::new()));
 pub static APPLICATION_PLUGINS: Lazy<RwLock<HashMap<String, Vec<String>>>> = Lazy::new(|| RwLock::new(HashMap::new()));
 pub static PREVIOUS_PROFILES: Lazy<RwLock<HashMap<String, String>>> = Lazy::new(|| RwLock::new(HashMap::new()));
+
+#[cfg(target_os = "windows")]
+fn is_microsoft_teams_process(name: &OsStr) -> bool {
+	matches!(name.to_string_lossy().to_ascii_lowercase().as_str(), "ms-teams.exe" | "msteams.exe" | "teams.exe")
+}
 
 #[derive(Clone, serde::Serialize)]
 pub struct SwitchProfileEvent {
@@ -95,9 +102,13 @@ pub fn init_application_watcher() {
 
 	tokio::spawn(async move {
 		let mut system = System::new_with_specifics(RefreshKind::nothing().with_processes(ProcessRefreshKind::nothing().without_tasks()));
+		#[cfg(target_os = "windows")]
+		let mut microsoft_teams_was_running = None;
 
 		loop {
 			system.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing().without_tasks());
+			#[cfg(target_os = "windows")]
+			let microsoft_teams_running = system.processes().values().any(|process| is_microsoft_teams_process(process.name()));
 
 			for (application, processes) in APPLICATION_PROCESSES.write().await.iter_mut() {
 				let mut alive_processes = Vec::with_capacity(processes.len());
@@ -129,6 +140,18 @@ pub fn init_application_watcher() {
 			}
 			drop(application_plugins);
 
+			#[cfg(target_os = "windows")]
+			{
+				// Keep checking the stopped state so a concurrently initialising or
+				// manually reloaded Teams plugin is shut down on the next pass.
+				if (!microsoft_teams_running || microsoft_teams_was_running == Some(false))
+					&& let Err(error) = crate::plugins::set_microsoft_teams_running(microsoft_teams_running).await
+				{
+					log::warn!("Failed to update Microsoft Teams plugin lifecycle: {error}");
+				}
+				microsoft_teams_was_running = Some(microsoft_teams_running);
+			}
+
 			tokio::time::sleep(std::time::Duration::from_millis(250)).await;
 		}
 	});
@@ -153,5 +176,19 @@ pub async fn stop_monitoring(plugin: &str) {
 	let mut application_plugins = APPLICATION_PLUGINS.write().await;
 	for plugins in application_plugins.values_mut() {
 		plugins.retain(|p| p != plugin);
+	}
+}
+
+#[cfg(all(test, target_os = "windows"))]
+mod tests {
+	use super::is_microsoft_teams_process;
+	use std::ffi::OsStr;
+
+	#[test]
+	fn detects_new_classic_and_store_teams_processes_case_insensitively() {
+		for name in ["ms-teams.exe", "MS-TEAMS.EXE", "Teams.exe", "msteams.exe"] {
+			assert!(is_microsoft_teams_process(OsStr::new(name)));
+		}
+		assert!(!is_microsoft_teams_process(OsStr::new("TeamsUpdater.exe")));
 	}
 }
