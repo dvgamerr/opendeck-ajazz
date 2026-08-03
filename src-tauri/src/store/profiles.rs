@@ -3,6 +3,7 @@ use super::Store;
 use crate::shared::{ActionInstance, DEVICES, DeviceInfo, Profile, config_dir};
 
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::fs;
 use std::path::PathBuf;
 
@@ -286,6 +287,13 @@ impl DeviceStores {
 	}
 }
 
+fn profile_id_from_file_name(file_name: &OsStr) -> Option<String> {
+	let mut id = file_name.to_string_lossy().into_owned();
+	let suffix = [".json.temp", ".json.bak", ".json"].into_iter().find(|suffix| id.ends_with(suffix))?;
+	id.truncate(id.len() - suffix.len());
+	Some(id)
+}
+
 pub fn get_device_profiles(device: &str) -> Result<Vec<String>, anyhow::Error> {
 	let mut profiles: Vec<String> = vec![];
 
@@ -294,33 +302,17 @@ pub fn get_device_profiles(device: &str) -> Result<Vec<String>, anyhow::Error> {
 	let entries = fs::read_dir(device_path)?;
 
 	for entry in entries.flatten() {
-		if entry.metadata()?.is_file() {
-			let mut id = entry.file_name().to_string_lossy().into_owned();
-			if id.ends_with(".json") {
-				id.truncate(id.len() - 5);
-			} else if id.ends_with(".json.bak") {
-				id.truncate(id.len() - 9);
-			} else if id.ends_with(".json.temp") {
-				id.truncate(id.len() - 10);
-			} else {
-				continue;
-			}
-			profiles.push(id);
-		} else if entry.metadata()?.is_dir() {
+		let metadata = entry.metadata()?;
+		if metadata.is_file() {
+			profiles.extend(profile_id_from_file_name(&entry.file_name()));
+		} else if metadata.is_dir() {
+			let folder = entry.file_name().to_string_lossy().into_owned();
 			let entries = fs::read_dir(entry.path())?;
 			for subentry in entries.flatten() {
-				if subentry.metadata()?.is_file() {
-					let mut id = format!("{}/{}", entry.file_name().to_string_lossy(), &subentry.file_name().to_string_lossy());
-					if id.ends_with(".json") {
-						id.truncate(id.len() - 5);
-					} else if id.ends_with(".json.bak") {
-						id.truncate(id.len() - 9);
-					} else if id.ends_with(".json.temp") {
-						id.truncate(id.len() - 10);
-					} else {
-						continue;
-					}
-					profiles.push(id);
+				if subentry.metadata()?.is_file()
+					&& let Some(id) = profile_id_from_file_name(&subentry.file_name())
+				{
+					profiles.push(format!("{folder}/{id}"));
 				}
 			}
 		}
@@ -330,6 +322,7 @@ pub fn get_device_profiles(device: &str) -> Result<Vec<String>, anyhow::Error> {
 		profiles.push("Default".to_owned());
 	}
 	profiles.sort_by_key(|profile| profile.to_lowercase());
+	profiles.dedup();
 
 	Ok(profiles)
 }
@@ -428,7 +421,7 @@ pub async fn save_profile(device: &str, locks: &mut LocksMut<'_>) -> Result<(), 
 
 #[cfg(test)]
 mod tests {
-	use super::{DeviceConfig, rename_profile_contents};
+	use super::{DeviceConfig, profile_id_from_file_name, rename_profile_contents};
 	use crate::shared::{Action, ActionContext, ActionInstance, ActionState, Profile};
 	use std::path::PathBuf;
 
@@ -440,6 +433,14 @@ mod tests {
 		.expect("legacy device config should remain readable");
 
 		assert_eq!(config.selected_profile, "Work");
+	}
+
+	#[test]
+	fn profile_file_names_support_current_and_recovery_store_artifacts() {
+		assert_eq!(profile_id_from_file_name("Default.json".as_ref()).as_deref(), Some("Default"));
+		assert_eq!(profile_id_from_file_name("Default.json.bak".as_ref()).as_deref(), Some("Default"));
+		assert_eq!(profile_id_from_file_name("Default.json.temp".as_ref()).as_deref(), Some("Default"));
+		assert_eq!(profile_id_from_file_name("notes.txt".as_ref()), None);
 	}
 
 	#[test]

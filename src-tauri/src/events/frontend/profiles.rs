@@ -5,6 +5,10 @@ use crate::store::profiles::{acquire_locks_mut, get_device_profiles};
 
 use tauri::{AppHandle, Emitter, Manager, command};
 
+fn connected_device(device: &str) -> Result<crate::shared::DeviceInfo, Error> {
+	DEVICES.get(device).map(|device| device.clone()).ok_or_else(|| Error::new(format!("device {device} not found")))
+}
+
 fn validate_profile_id(id: &str) -> Result<(), anyhow::Error> {
 	if id.is_empty() || id.trim() != id {
 		return Err(anyhow::anyhow!("Profile name cannot be empty or start or end with spaces"));
@@ -20,25 +24,38 @@ fn validate_profile_id(id: &str) -> Result<(), anyhow::Error> {
 	Ok(())
 }
 
+fn visible_profile_instances(profile: &crate::shared::Profile) -> impl Iterator<Item = &crate::shared::ActionInstance> {
+	profile.keys.iter().flatten().chain(profile.sliders.iter().flatten()).flat_map(|instance| {
+		let is_container = matches!(instance.action.uuid.as_str(), "opendeck.multiaction" | "opendeck.toggleaction");
+		let parent = (!is_container).then_some(instance).into_iter();
+		let children = instance.children.as_deref().filter(|_| is_container).into_iter().flatten();
+		parent.chain(children)
+	})
+}
+
 async fn profile_will_appear(profile: &crate::shared::Profile) {
-	for instance in profile.keys.iter().flatten().chain(profile.sliders.iter().flatten()) {
-		if !matches!(instance.action.uuid.as_str(), "opendeck.multiaction" | "opendeck.toggleaction") {
-			let _ = crate::events::outbound::will_appear::will_appear(instance).await;
-		} else if let Some(children) = &instance.children {
-			for child in children {
-				let _ = crate::events::outbound::will_appear::will_appear(child).await;
-			}
-		}
+	for instance in visible_profile_instances(profile) {
+		let _ = crate::events::outbound::will_appear::will_appear(instance).await;
 	}
 }
 
 async fn profile_will_disappear(profile: &crate::shared::Profile) {
-	for instance in profile.keys.iter().flatten().chain(profile.sliders.iter().flatten()) {
-		if !matches!(instance.action.uuid.as_str(), "opendeck.multiaction" | "opendeck.toggleaction") {
-			let _ = crate::events::outbound::will_appear::will_disappear(instance, false).await;
-		} else if let Some(children) = &instance.children {
-			for child in children {
-				let _ = crate::events::outbound::will_appear::will_disappear(child, false).await;
+	for instance in visible_profile_instances(profile) {
+		let _ = crate::events::outbound::will_appear::will_disappear(instance, false).await;
+	}
+}
+
+async fn clear_vacated_slots(old_profile: &crate::shared::Profile, new_profile: &crate::shared::Profile) {
+	for (old_slots, new_slots) in [(&old_profile.keys, &new_profile.keys), (&old_profile.sliders, &new_profile.sliders)] {
+		for (position, old_instance) in old_slots.iter().enumerate() {
+			let Some(old_instance) = old_instance else {
+				continue;
+			};
+			if new_slots.get(position).and_then(Option::as_ref).is_some() {
+				continue;
+			}
+			if let Err(error) = crate::events::outbound::devices::update_image((&old_instance.context).into(), None).await {
+				log::warn!("Failed to clear vacated profile slot: {error}");
 			}
 		}
 	}
@@ -51,13 +68,10 @@ pub fn get_profiles(device: &str) -> Result<Vec<String>, Error> {
 
 #[command]
 pub async fn get_selected_profile(device: String) -> Result<crate::shared::Profile, Error> {
+	let device_info = connected_device(&device)?;
 	let mut locks = acquire_locks_mut().await;
-	if !DEVICES.contains_key(&device) {
-		return Err(Error::new(format!("device {device} not found")));
-	}
-
 	let selected_profile = locks.device_stores.get_selected_profile(&device)?;
-	let profile = locks.profile_stores.get_profile_store(&DEVICES.get(&device).unwrap(), &selected_profile)?;
+	let profile = locks.profile_stores.get_profile_store(&device_info, &selected_profile)?;
 
 	Ok(profile.value.clone())
 }
@@ -65,16 +79,13 @@ pub async fn get_selected_profile(device: String) -> Result<crate::shared::Profi
 #[allow(clippy::flat_map_identity)]
 #[command]
 pub async fn reload_selected_profile(device: String) -> Result<crate::shared::Profile, Error> {
+	let device_info = connected_device(&device)?;
 	let mut locks = acquire_locks_mut().await;
 	crate::ajazz::resume_profile_rendering(&device).await;
-	if !DEVICES.contains_key(&device) {
-		return Err(Error::new(format!("device {device} not found")));
-	}
-
 	let selected_profile = locks.device_stores.get_selected_profile(&device)?;
 	crate::events::outbound::devices::clear_screen(device.clone()).await?;
 
-	let profile = locks.profile_stores.get_profile_store(&DEVICES.get(&device).unwrap(), &selected_profile)?;
+	let profile = locks.profile_stores.get_profile_store(&device_info, &selected_profile)?;
 	profile_will_appear(&profile.value).await;
 
 	Ok(profile.value.clone())
@@ -83,22 +94,25 @@ pub async fn reload_selected_profile(device: String) -> Result<crate::shared::Pr
 #[allow(clippy::flat_map_identity)]
 #[command]
 pub async fn set_selected_profile(device: String, id: String) -> Result<(), Error> {
+	let device_info = connected_device(&device)?;
 	let mut locks = acquire_locks_mut().await;
-	if !DEVICES.contains_key(&device) {
-		return Err(Error::new(format!("device {device} not found")));
-	}
-
 	let selected_profile = locks.device_stores.get_selected_profile(&device)?;
-
-	if selected_profile != id {
-		let old_profile = &locks.profile_stores.get_profile_store(&DEVICES.get(&device).unwrap(), &selected_profile)?.value;
-		profile_will_disappear(old_profile).await;
-		let _ = crate::events::outbound::devices::clear_screen(device.clone()).await;
+	if selected_profile == id {
+		return Ok(());
 	}
+	let old_profile = locks.profile_stores.get_profile_store(&device_info, &selected_profile)?.value.clone();
+	profile_will_disappear(&old_profile).await;
 
 	// We must use the mutable version of get_profile_store in order to create the store if it does not exist.
-	let store = locks.profile_stores.get_profile_store_mut(&DEVICES.get(&device).unwrap(), &id).await?;
+	let store = match locks.profile_stores.get_profile_store_mut(&device_info, &id).await {
+		Ok(store) => store,
+		Err(error) => {
+			profile_will_appear(&old_profile).await;
+			return Err(error.into());
+		}
+	};
 	let new_profile = &store.value;
+	clear_vacated_slots(&old_profile, new_profile).await;
 	profile_will_appear(new_profile).await;
 	store.save()?;
 
@@ -111,7 +125,7 @@ pub async fn set_selected_profile(device: String, id: String) -> Result<(), Erro
 pub async fn rename_profile(device: String, profile: String, new_id: String) -> Result<crate::shared::Profile, Error> {
 	validate_profile_id(&new_id)?;
 	let mut locks = acquire_locks_mut().await;
-	let device_info = DEVICES.get(&device).ok_or_else(|| Error::new(format!("device {device} not found")))?.clone();
+	let device_info = connected_device(&device)?;
 	let profiles = get_device_profiles(&device)?;
 	if !profiles.contains(&profile) {
 		return Err(Error::new(format!("profile {profile} not found")));
@@ -128,7 +142,6 @@ pub async fn rename_profile(device: String, profile: String, new_id: String) -> 
 	let old_profile = locks.profile_stores.get_profile_store(&device_info, &profile)?.value.clone();
 	if selected_before == profile {
 		profile_will_disappear(&old_profile).await;
-		let _ = crate::events::outbound::devices::clear_screen(device.clone()).await;
 	}
 
 	let renamed_profile = match locks.profile_stores.rename_profile(&device_info, &profile, &new_id) {

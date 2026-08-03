@@ -8,6 +8,7 @@
 	import Trash from "phosphor-svelte/lib/Trash";
 	import X from "phosphor-svelte/lib/X";
 	import Popup from "./Popup.svelte";
+	import ProfileOptions from "./ProfileOptions.svelte";
 
 	import { invoke } from "@tauri-apps/api/core";
 	import { listen, type UnlistenFn } from "@tauri-apps/api/event";
@@ -264,19 +265,7 @@
 </script>
 
 <select bind:value class="select select-sm w-full" aria-label="Profile">
-	{#each Object.entries(folders) as [id, profiles]}
-		{#if id && profiles.length}
-			<optgroup label={id}>
-				{#each profiles as profile}
-					<option value={profile}>{profile.split("/")[1]}</option>
-				{/each}
-			</optgroup>
-		{:else}
-			{#each profiles as profile}
-				<option value={profile}>{profile}</option>
-			{/each}
-		{/if}
-	{/each}
+	<ProfileOptions {folders} />
 	<option value="opendeck_edit_profiles">Edit...</option>
 </select>
 
@@ -400,19 +389,7 @@
 							<td>{appName == "opendeck_default" ? "Default profile" : appName}:</td>
 							<td>
 								<select bind:value={applicationProfiles[appName][device.id]} class="select select-sm w-full">
-									{#each Object.entries(folders) as [id, profiles]}
-										{#if id && profiles.length}
-											<optgroup label={id}>
-												{#each profiles as profile}
-													<option value={profile}>{profile.split("/")[1]}</option>
-												{/each}
-											</optgroup>
-										{:else}
-											{#each profiles as profile}
-												<option value={profile}>{profile}</option>
-											{/each}
-										{/if}
-									{/each}
+									<ProfileOptions {folders} />
 									<option disabled>──────────</option>
 									<option value={undefined}>Remove application</option>
 								</select>
@@ -440,19 +417,7 @@
 					<td class="w-96">
 						<select bind:value={applicationsAddProfile} class="select select-sm w-full">
 							<option selected disabled value="opendeck_select_profile">Select profile...</option>
-							{#each Object.entries(folders) as [id, profiles]}
-								{#if id && profiles.length}
-									<optgroup label={id}>
-										{#each profiles as profile}
-											<option value={profile}>{profile.split("/")[1]}</option>
-										{/each}
-									</optgroup>
-								{:else}
-									{#each profiles as profile}
-										<option value={profile}>{profile}</option>
-									{/each}
-								{/if}
-							{/each}
+							<ProfileOptions {folders} />
 						</select>
 					</td>
 				</tr>
