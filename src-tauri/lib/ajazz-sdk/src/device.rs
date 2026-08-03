@@ -268,6 +268,11 @@ impl Ajazz {
     /// they will appear on the device!
     pub fn clear_all_button_images(&self) -> Result<(), AjazzError> {
         self.initialize()?;
+
+        self.image_cache
+            .write()
+            .map_err(|_| AjazzError::PoisonError)?
+            .clear();
         self.clear_button_image(codes::CMD_CLEAR_ALL)?;
 
         if self.kind.is_v2_api() {
@@ -276,6 +281,15 @@ impl Ajazz {
             self.hid.write(packet.as_slice())?;
         }
 
+        Ok(())
+    }
+
+    /// Clears every display surface and commits the clear immediately.
+    pub fn clear_screen(&self) -> Result<(), AjazzError> {
+        self.clear_all_button_images()?;
+        if !self.kind.is_v2_api() {
+            self.flush_batch()?;
+        }
         Ok(())
     }
 

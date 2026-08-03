@@ -79,8 +79,7 @@ pub async fn clear_screen(id: &str) -> Result<(), anyhow::Error> {
 	}
 
 	if let Some(device) = AJAZZ_DEVICES.read().await.get(id) {
-		device.clear_all_button_images().await?;
-		device.flush().await?;
+		device.clear_screen().await?;
 	}
 	Ok(())
 }

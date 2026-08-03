@@ -99,6 +99,16 @@ pub async fn set_selected_profile(device: String, id: String) -> Result<(), Erro
 	profile_will_appear(new_profile).await;
 	store.save()?;
 
+	// Clear once, as late as possible in the transition. The selected-profile
+	// lock held by this function prevents an older frame batch from committing
+	// after the clear, while the frontend will render the new profile as one
+	// initial batch after this command returns.
+	if let Err(error) = crate::events::outbound::devices::clear_screen(device.clone()).await {
+		profile_will_disappear(new_profile).await;
+		profile_will_appear(&old_profile).await;
+		return Err(error.into());
+	}
+
 	locks.device_stores.set_selected_profile(&device, id)?;
 
 	Ok(())
