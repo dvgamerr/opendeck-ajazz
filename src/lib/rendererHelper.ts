@@ -3,6 +3,34 @@ import type { ActionState } from "./ActionState.ts";
 import { isGifImageSource } from "./imageFormat.ts";
 import { getWebserverUrl } from "./ports.ts";
 
+const MAX_DECODED_IMAGES = 256;
+const decodedImages = new Map<string, Promise<HTMLImageElement>>();
+
+function loadImage(source: string): Promise<HTMLImageElement> {
+	if (!isGifImageSource(source)) {
+		const cached = decodedImages.get(source);
+		if (cached) return cached;
+	}
+
+	const promise = new Promise<HTMLImageElement>((resolve, reject) => {
+		const image = document.createElement("img");
+		image.crossOrigin = "anonymous";
+		image.onload = () => resolve(image);
+		image.onerror = reject;
+		image.src = source;
+	});
+
+	if (!isGifImageSource(source)) {
+		decodedImages.set(source, promise);
+		promise.catch(() => decodedImages.delete(source));
+		if (decodedImages.size > MAX_DECODED_IMAGES) {
+			const oldest = decodedImages.keys().next().value;
+			if (oldest !== undefined) decodedImages.delete(oldest);
+		}
+	}
+	return promise;
+}
+
 export function getImage(image: string | undefined, fallback: string | undefined): string {
 	if (!image) return fallback ? getImage(fallback, undefined) : "/alert.png";
 	if (image.startsWith("opendeck/")) return image.replace("opendeck", "");
@@ -63,15 +91,7 @@ export async function renderImage(
 
 	try {
 		// Load image
-		const image = sourceImage ?? document.createElement("img");
-		if (!sourceImage) {
-			image.crossOrigin = "anonymous";
-			image.src = processImage ? getImage(state.image, fallback) : state.image;
-			await new Promise<void>((resolve, reject) => {
-				image.onload = () => resolve();
-				image.onerror = reject;
-			});
-		}
+		const image = sourceImage ?? (await loadImage(processImage ? getImage(state.image, fallback) : state.image));
 		renderedImage = image;
 
 		// Draw image
