@@ -31,6 +31,10 @@ enum PluginInstance {
 pub static DEVICE_NAMESPACES: Lazy<RwLock<HashMap<String, String>>> = Lazy::new(|| RwLock::new(HashMap::new()));
 static INSTANCES: Lazy<Mutex<HashMap<String, PluginInstance>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
+fn should_sync_builtin_plugin(existing_version: &semver::Version, builtin_version: &semver::Version, development: bool) -> bool {
+	development || existing_version < builtin_version
+}
+
 pub static PORT_BASE: Lazy<u16> = Lazy::new(|| {
 	let mut base = 57116;
 	loop {
@@ -169,18 +173,19 @@ pub async fn initialise_plugin(path: &path::Path) -> anyhow::Result<()> {
 	let port_string = PORT_BASE.to_string();
 	let args = ["-port", port_string.as_str(), "-pluginUUID", plugin_uuid, "-registerEvent", "registerPlugin", "-info"];
 
-	if code_path.to_lowercase().ends_with(".html") || code_path.to_lowercase().ends_with(".htm") || code_path.to_lowercase().ends_with(".xhtml") {
-		let url = format!("http://localhost:{}/", *PORT_BASE + 2) + path.join(code_path).to_str().unwrap();
+	let code_path_lowercase = code_path.to_ascii_lowercase();
+	if [".html", ".htm", ".xhtml"].iter().any(|extension| code_path_lowercase.ends_with(extension)) {
+		let url = format!("http://localhost:{}/", *PORT_BASE + 2) + path.join(&code_path).to_str().unwrap();
 		let window = tauri::WebviewWindowBuilder::new(APP_HANDLE.get().unwrap(), plugin_uuid.replace('.', "_"), tauri::WebviewUrl::External(url.parse()?))
 			.title(plugin_uuid)
 			.visible(false)
 			.build()?;
 
-		if let Ok(store) = get_settings() {
-			if store.value.developer {
-				let _ = window.show();
-				window.open_devtools();
-			}
+		if let Ok(store) = get_settings()
+			&& store.value.developer
+		{
+			let _ = window.show();
+			window.open_devtools();
 		}
 
 		let info = info_param::make_info(plugin_uuid.to_owned(), manifest.version, false).await;
@@ -319,10 +324,10 @@ pub async fn initialise_plugin(path: &path::Path) -> anyhow::Result<()> {
 		}
 	}
 
-	if let Some(applications) = manifest.applications_to_monitor {
-		if let Some(applications) = applications.get(platform) {
-			crate::application_watcher::start_monitoring(plugin_uuid, applications).await;
-		}
+	if let Some(applications) = manifest.applications_to_monitor
+		&& let Some(applications) = applications.get(platform)
+	{
+		crate::application_watcher::start_monitoring(plugin_uuid, applications).await;
 	}
 
 	Ok(())
@@ -392,8 +397,8 @@ pub fn initialise_plugins() {
 				let existing_path = plugin_dir.join(entry.file_name());
 				if (|| -> Result<(), anyhow::Error> {
 					let existing_version = semver::Version::parse(&serde_json::from_slice::<manifest::PluginManifest>(&fs::read(existing_path.join("manifest.json"))?)?.version)?;
-					if existing_version < builtin_version {
-						Err(anyhow::anyhow!("builtin version is newer than existing version"))
+					if should_sync_builtin_plugin(&existing_version, &builtin_version, cfg!(debug_assertions)) {
+						Err(anyhow::anyhow!("builtin plugin should replace existing plugin"))
 					} else {
 						Ok(())
 					}
@@ -485,5 +490,28 @@ async fn accept_connection(stream: TcpStream) {
 		Err(_) => {
 			let _ = crate::events::inbound::process_incoming_message(Ok(register_event), "", false).await;
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::should_sync_builtin_plugin;
+	use semver::Version;
+
+	#[test]
+	fn development_builds_always_sync_builtin_plugins() {
+		let builtin = Version::new(2, 12, 3);
+
+		assert!(should_sync_builtin_plugin(&Version::new(2, 12, 3), &builtin, true));
+		assert!(should_sync_builtin_plugin(&Version::new(3, 0, 0), &builtin, true));
+	}
+
+	#[test]
+	fn release_builds_only_upgrade_older_builtin_plugins() {
+		let builtin = Version::new(2, 12, 3);
+
+		assert!(should_sync_builtin_plugin(&Version::new(2, 12, 2), &builtin, false));
+		assert!(!should_sync_builtin_plugin(&Version::new(2, 12, 3), &builtin, false));
+		assert!(!should_sync_builtin_plugin(&Version::new(3, 0, 0), &builtin, false));
 	}
 }
