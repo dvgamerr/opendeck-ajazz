@@ -113,30 +113,22 @@ fn snapshot_image(snapshot: &AudioSnapshot, event: &str) -> String {
 	let status_path = text_path(&status, status_center, 62, 29, accent);
 	let device_path = text_path(&device_name, 88.0, 102, 10, "#a7b0c0");
 	let level = peak_level(snapshot);
-	let (speaker_nudge, speaker_waves) = if snapshot.muted {
-		(
-			0,
-			r##"<path d="M34 42h5v5h5v5h-5v5h-5v-5h-5v-5h5z" fill="#ff3155"/>"##,
-		)
+	let speaker_waves = if snapshot.muted {
+		r##"<path d="M34 42h5v5h5v5h-5v5h-5v-5h-5v-5h5z" fill="#ff3155"/>"##
 	} else {
 		match level {
-			0 => (0, ""),
-			1 => (
-				1,
-				r##"<path d="M32 44h5v5h4v6h-4v5h-5v-5h4v-6h-4z" fill="#20e3ff"/>"##,
-			),
-			2 => (
-				-1,
-				r##"<path d="M32 42h5v5h4v10h-4v5h-5v-5h4V47h-4zM42 39h5v5h4v16h-4v5h-5v-5h4V44h-4z" fill="#20e3ff"/>"##,
-			),
-			_ => (
-				2,
-				r##"<path d="M32 42h5v5h4v10h-4v5h-5v-5h4V47h-4zM42 37h5v5h4v20h-4v5h-5v-5h4V42h-4zM52 32h5v5h4v30h-4v5h-5v-5h4V37h-4z" fill="#20e3ff"/>"##,
-			),
+			0 => "",
+			1 => r##"<path d="M32 44h5v5h4v6h-4v5h-5v-5h4v-6h-4z" fill="#20e3ff"/>"##,
+			2 => {
+				r##"<path d="M32 42h5v5h4v10h-4v5h-5v-5h4V47h-4zM42 39h5v5h4v16h-4v5h-5v-5h4V44h-4z" fill="#20e3ff"/>"##
+			}
+			_ => {
+				r##"<path d="M32 42h5v5h4v10h-4v5h-5v-5h4V47h-4zM42 37h5v5h4v20h-4v5h-5v-5h4V42h-4zM52 32h5v5h4v30h-4v5h-5v-5h4V37h-4z" fill="#20e3ff"/>"##
+			}
 		}
 	};
 	let switch_indicator = device_switch_indicator(event);
-	let speaker_x = speaker_offset + speaker_nudge as f32;
+	let speaker_x = speaker_offset;
 
 	let svg = format!(
 		r##"<svg xmlns="http://www.w3.org/2000/svg" width="176" height="112" viewBox="0 0 176 112" shape-rendering="crispEdges">
@@ -629,6 +621,30 @@ mod tests {
 		assert_ne!(quiet, loud);
 		assert!(!quiet.contains("M52%2032"));
 		assert!(loud.contains("M52%2032"));
+	}
+
+	#[test]
+	fn audio_peak_animation_keeps_the_speaker_anchor_fixed() {
+		let (speaker_offset, _) = centered_status_layout("50%");
+		let expected_transform =
+			format!("%3Cg%20transform%3D%22translate%28{speaker_offset:.2}%200%29%22%3E");
+
+		for peak in [0, 10, 30, 90] {
+			let image = snapshot_image(
+				&AudioSnapshot {
+					device_name: "Output".to_owned(),
+					volume: 50,
+					muted: false,
+					peak,
+				},
+				"",
+			);
+
+			assert!(
+				image.contains(&expected_transform),
+				"speaker moved at peak {peak}"
+			);
+		}
 	}
 
 	#[cfg(windows)]
