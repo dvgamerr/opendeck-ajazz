@@ -30,6 +30,12 @@ export default [
 		},
 	},
 	{
+		files: ["plugins/**/assets/propertyInspector/*.js"],
+		languageOptions: {
+			globals: globals.browser,
+		},
+	},
+	{
 		rules: {
 			"@typescript-eslint/ban-ts-comment": "off",
 			"@typescript-eslint/no-explicit-any": "off",
@@ -44,6 +50,6 @@ export default [
 		},
 	},
 	{
-		ignores: ["node_modules/**", "build/**", ".svelte-kit/**", "src-tauri/**", "web/**", "plugins/**/assets/**", "plugins/**/src/**"],
+		ignores: ["node_modules/**", "build/**", ".svelte-kit/**", "src-tauri/**", "plugins/**/src/**"],
 	},
 ];

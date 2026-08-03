@@ -4,9 +4,17 @@ name: Lint app
 on:
   pull_request:
     paths:
-      - 'scripts/lint-app.sh'
-      - 'src-tauri/**'
-      - 'src/**'
+      - "scripts/lint-app.sh"
+      - "package.json"
+      - "bun.lock"
+      - "eslint.config.js"
+      - "svelte.config.js"
+      - "tsconfig.json"
+      - "vite.config.ts"
+      - "src-tauri/**"
+      - "src/**"
+      - "plugins/**"
+      - "tests/**"
     branches:
       - main
     types: ["opened", "synchronize", "reopened"]
