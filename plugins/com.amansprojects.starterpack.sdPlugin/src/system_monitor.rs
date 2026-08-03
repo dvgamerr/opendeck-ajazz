@@ -495,8 +495,19 @@ fn loading_image() -> String {
 	))
 }
 
+fn appearance_image(settings: MonitorSettings, state: Option<&RenderState>) -> String {
+	state
+		.map(|state| monitor_image(&state.snapshot, settings, &state.history))
+		.unwrap_or_else(loading_image)
+}
+
 async fn render(mut receiver: mpsc::Receiver<MonitorSnapshot>) {
-	let mut history = VecDeque::with_capacity(HISTORY_LENGTH);
+	let mut history = LAST_STATE
+		.lock()
+		.unwrap()
+		.as_ref()
+		.map(|state| state.history.clone())
+		.unwrap_or_else(|| VecDeque::with_capacity(HISTORY_LENGTH));
 	while let Some(snapshot) = receiver.recv().await {
 		if history.len() == HISTORY_LENGTH {
 			history.pop_front();
@@ -527,12 +538,15 @@ pub async fn appear(
 	settings: SettingsValue,
 	outbound: &mut OutboundEventManager,
 ) -> EventHandlerResult {
-	SETTINGS
-		.lock()
-		.unwrap()
-		.insert(context.clone(), MonitorSettings::from_settings(&settings));
+	let settings = MonitorSettings::from_settings(&settings);
+	SETTINGS.lock().unwrap().insert(context.clone(), settings);
+	let state = LAST_STATE.lock().unwrap().clone();
 	outbound
-		.set_image(context.clone(), Some(loading_image()), None)
+		.set_image(
+			context.clone(),
+			Some(appearance_image(settings, state.as_ref())),
+			None,
+		)
 		.await?;
 
 	let mut live = LIVE.lock().unwrap();
@@ -988,7 +1002,8 @@ mod platform {
 #[cfg(test)]
 mod tests {
 	use super::{
-		DisplayMetric, DisplayMode, HistoryPoint, MonitorSettings, MonitorSnapshot, monitor_image,
+		DisplayMetric, DisplayMode, HistoryPoint, MonitorSettings, MonitorSnapshot, RenderState,
+		appearance_image, loading_image, monitor_image,
 	};
 	use std::collections::VecDeque;
 
@@ -1109,6 +1124,26 @@ mod tests {
 		assert!(!image.contains("%23202938"));
 		assert!(!image.contains("%231e293b"));
 		assert!(image.len() < 40_000);
+	}
+
+	#[test]
+	fn appearance_reuses_the_last_rendered_state() {
+		let snapshot = snapshot();
+		let history = history(&snapshot);
+		let state = RenderState { snapshot, history };
+		let settings = MonitorSettings::default();
+		assert_eq!(
+			appearance_image(settings, Some(&state)),
+			monitor_image(&state.snapshot, settings, &state.history)
+		);
+	}
+
+	#[test]
+	fn appearance_shows_loading_without_a_rendered_state() {
+		assert_eq!(
+			appearance_image(MonitorSettings::default(), None),
+			loading_image()
+		);
 	}
 
 	#[cfg(windows)]
