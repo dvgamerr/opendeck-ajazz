@@ -97,29 +97,6 @@ pub async fn clear_screen(device: String) -> Result<(), anyhow::Error> {
 	Ok(())
 }
 
-pub async fn clear_keypad(device: String, key_count: u8) -> Result<(), anyhow::Error> {
-	let plugin = DEVICE_NAMESPACES.read().await.get(&device[..2]).cloned();
-	if let Some(plugin) = plugin {
-		for position in 0..key_count {
-			send_to_plugin(
-				&plugin,
-				&SetImageEvent {
-					event: "setImage",
-					device: device.clone(),
-					controller: Some("Keypad".to_owned()),
-					position: Some(position),
-					image: None,
-				},
-			)
-			.await?;
-		}
-	} else if device.starts_with("sd-") {
-		crate::ajazz::clear_keypad(&device).await?;
-	}
-
-	Ok(())
-}
-
 #[derive(Serialize)]
 struct SetBrightnessEvent {
 	event: &'static str,

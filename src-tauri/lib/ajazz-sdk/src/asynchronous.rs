@@ -186,20 +186,6 @@ impl AsyncAjazz {
         block_in_place(move || device.clear_all_button_images())
     }
 
-    /// Clears only keypad displays and commits the clear while holding the
-    /// device lock once.
-    pub async fn clear_keypad(&self) -> Result<(), AjazzError> {
-        let device = self.device.lock().await;
-        block_in_place(move || device.clear_keypad())
-    }
-
-    /// Clears every display surface and commits the clear while holding the
-    /// device lock once.
-    pub async fn clear_screen(&self) -> Result<(), AjazzError> {
-        let device = self.device.lock().await;
-        block_in_place(move || device.clear_screen())
-    }
-
     /// Sets specified button's image, changes must be flushed with `.flush()` before
     /// they will appear on the device!
     pub async fn set_button_image(

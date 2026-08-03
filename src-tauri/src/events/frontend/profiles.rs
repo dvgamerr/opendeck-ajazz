@@ -79,7 +79,6 @@ pub async fn reload_selected_profile(device: String) -> Result<crate::shared::Pr
 #[command]
 pub async fn set_selected_profile(device: String, id: String) -> Result<(), Error> {
 	let device_info = connected_device(&device)?;
-	let keypad_count = device_info.rows.saturating_mul(device_info.columns);
 	let mut locks = acquire_locks_mut().await;
 	let selected_profile = locks.device_stores.get_selected_profile(&device)?;
 	if selected_profile == id {
@@ -99,16 +98,6 @@ pub async fn set_selected_profile(device: String, id: String) -> Result<(), Erro
 	let new_profile = &store.value;
 	profile_will_appear(new_profile).await;
 	store.save()?;
-
-	// Clear the keypad once, as late as possible in the transition. The selected-profile
-	// lock held by this function prevents an older frame batch from committing
-	// after the clear, while non-keypad displays remain unchanged and the
-	// frontend renders the new profile as one initial batch after this command returns.
-	if let Err(error) = crate::events::outbound::devices::clear_keypad(device.clone(), keypad_count).await {
-		profile_will_disappear(new_profile).await;
-		profile_will_appear(&old_profile).await;
-		return Err(error.into());
-	}
 
 	locks.device_stores.set_selected_profile(&device, id)?;
 

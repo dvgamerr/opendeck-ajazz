@@ -368,15 +368,4 @@ mod tests {
             Ok(0xff)
         ));
     }
-
-    #[test]
-    fn akp05e_552a_keypad_indices_do_not_overlap_touch_zones() {
-        let kind = Kind::Akp05E552A;
-        let mapped = (0..kind.display_key_count())
-            .map(|key| kind.opendeck_to_device_key(key).unwrap())
-            .collect::<Vec<_>>();
-
-        assert_eq!(mapped, vec![10, 11, 12, 13, 14, 5, 6, 7, 8, 9]);
-        assert!(mapped.iter().all(|key| *key >= kind.touchpoint_count()));
-    }
 }

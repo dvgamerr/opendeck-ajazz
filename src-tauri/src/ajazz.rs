@@ -79,20 +79,8 @@ pub async fn clear_screen(id: &str) -> Result<(), anyhow::Error> {
 	}
 
 	if let Some(device) = AJAZZ_DEVICES.read().await.get(id) {
-		device.clear_screen().await?;
-	}
-	Ok(())
-}
-
-pub async fn clear_keypad(id: &str) -> Result<(), anyhow::Error> {
-	let rendering_gate = profile_rendering_gate(id);
-	let rendering_paused = rendering_gate.read().await;
-	if *rendering_paused {
-		return Ok(());
-	}
-
-	if let Some(device) = AJAZZ_DEVICES.read().await.get(id) {
-		device.clear_keypad().await?;
+		device.clear_all_button_images().await?;
+		device.flush().await?;
 	}
 	Ok(())
 }

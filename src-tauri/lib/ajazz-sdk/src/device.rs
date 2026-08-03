@@ -268,11 +268,6 @@ impl Ajazz {
     /// they will appear on the device!
     pub fn clear_all_button_images(&self) -> Result<(), AjazzError> {
         self.initialize()?;
-
-        self.image_cache
-            .write()
-            .map_err(|_| AjazzError::PoisonError)?
-            .clear();
         self.clear_button_image(codes::CMD_CLEAR_ALL)?;
 
         if self.kind.is_v2_api() {
@@ -281,37 +276,6 @@ impl Ajazz {
             self.hid.write(packet.as_slice())?;
         }
 
-        Ok(())
-    }
-
-    /// Clears only keypad displays and commits the clear immediately, leaving
-    /// touch strips and other display surfaces unchanged.
-    pub fn clear_keypad(&self) -> Result<(), AjazzError> {
-        self.initialize()?;
-
-        // Pending images may belong to the profile that is disappearing. Drop
-        // them without clearing the corresponding physical non-keypad surfaces.
-        self.image_cache
-            .write()
-            .map_err(|_| AjazzError::PoisonError)?
-            .clear();
-
-        // This firmware stages one targeted clear at a time, so each keypad
-        // position must be committed before sending the next one.
-        for key in 0..self.kind.display_key_count() {
-            self.clear_button_image(key)?;
-            self.flush_batch()?;
-        }
-
-        Ok(())
-    }
-
-    /// Clears every display surface and commits the clear immediately.
-    pub fn clear_screen(&self) -> Result<(), AjazzError> {
-        self.clear_all_button_images()?;
-        if !self.kind.is_v2_api() {
-            self.flush_batch()?;
-        }
         Ok(())
     }
 
