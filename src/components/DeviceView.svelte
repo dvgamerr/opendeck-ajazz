@@ -7,9 +7,10 @@
 	import Key from "./Key.svelte";
 
 	import { inspectedInstance, inspectedParentAction, openContextMenu } from "$lib/propertyInspector";
+	import { beginInitialDeviceRender, cancelDeviceFrames } from "$lib/deviceFrames";
 
 	import { invoke } from "@tauri-apps/api/core";
-	import { onMount } from "svelte";
+	import { onDestroy, onMount } from "svelte";
 
 	export let device: DeviceInfo;
 	export let profile: Profile;
@@ -20,6 +21,17 @@
 	let previewViewport: HTMLDivElement;
 	let chassis: HTMLDivElement;
 	let previewScale = 1;
+	let renderProfile = "";
+
+	$: {
+		const nextRenderProfile = `${device.id}:${profile.id}`;
+		if (nextRenderProfile != renderProfile) {
+			renderProfile = nextRenderProfile;
+			beginInitialDeviceRender(device.id, profile.id, device.rows * device.columns + device.encoders);
+		}
+	}
+
+	onDestroy(() => cancelDeviceFrames(device.id));
 
 	function updatePreviewScale() {
 		if (!previewViewport || !chassis) return;

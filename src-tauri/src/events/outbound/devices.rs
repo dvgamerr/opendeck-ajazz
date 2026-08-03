@@ -45,20 +45,33 @@ struct SetImageEvent {
 }
 
 pub async fn update_image(context: crate::shared::Context, image: Option<String>) -> Result<(), anyhow::Error> {
-	if let Some(plugin) = DEVICE_NAMESPACES.read().await.get(&context.device[..2]) {
-		send_to_plugin(
-			plugin,
-			&SetImageEvent {
-				event: "setImage",
-				device: context.device,
-				controller: Some(context.controller),
-				position: Some(context.position),
-				image,
-			},
-		)
-		.await?;
-	} else if context.device.starts_with("sd-") {
-		crate::ajazz::update_image(&context, image.as_deref()).await?;
+	update_images(vec![(context, image)]).await
+}
+
+pub async fn update_images(updates: Vec<(crate::shared::Context, Option<String>)>) -> Result<(), anyhow::Error> {
+	let Some(device) = updates.first().map(|(context, _)| context.device.clone()) else {
+		return Ok(());
+	};
+	if updates.iter().any(|(context, _)| context.device != device) {
+		return Err(anyhow::anyhow!("An image batch cannot target multiple devices"));
+	}
+
+	if let Some(plugin) = DEVICE_NAMESPACES.read().await.get(&device[..2]) {
+		for (context, image) in updates {
+			send_to_plugin(
+				plugin,
+				&SetImageEvent {
+					event: "setImage",
+					device: context.device,
+					controller: Some(context.controller),
+					position: Some(context.position),
+					image,
+				},
+			)
+			.await?;
+		}
+	} else if device.starts_with("sd-") {
+		crate::ajazz::update_images(updates).await?;
 	}
 
 	Ok(())

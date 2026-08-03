@@ -221,6 +221,14 @@ impl Ajazz {
 
     /// Flushes the button's image to the device
     pub fn flush(&self) -> Result<(), AjazzError> {
+        self.flush_inner(false)
+    }
+
+    pub(crate) fn flush_batch(&self) -> Result<(), AjazzError> {
+        self.flush_inner(true)
+    }
+
+    fn flush_inner(&self, force: bool) -> Result<(), AjazzError> {
         self.initialize()?;
 
         let is_empty = {
@@ -233,6 +241,10 @@ impl Ajazz {
         };
 
         if is_empty {
+            if force {
+                let packet = self.kind.flush_packet();
+                self.hid.write(packet.as_slice())?;
+            }
             return Ok(());
         }
 
@@ -382,7 +394,7 @@ impl Ajazz {
         self.write_native_image_to_cache(od_key, image_data)
     }
 
-    fn write_native_image_to_cache(
+    pub(crate) fn write_native_image_to_cache(
         &self,
         key: u8,
         image_data: &[u8],

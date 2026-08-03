@@ -212,14 +212,41 @@ pub async fn set_state(instance: ActionInstance, state: u16) -> Result<(), Error
 }
 
 #[command]
-pub async fn update_image(context: Context, image: String) {
-	if Some(&context.profile) != crate::store::profiles::DEVICE_STORES.write().await.get_selected_profile(&context.device).ok().as_ref() {
-		return;
+pub async fn update_image(context: Context, image: String) -> Result<(), Error> {
+	update_images(vec![DeviceFrameUpdate { context, image: Some(image) }]).await
+}
+
+#[derive(serde::Deserialize)]
+pub struct DeviceFrameUpdate {
+	context: Context,
+	image: Option<String>,
+}
+
+#[command]
+pub async fn update_images(frames: Vec<DeviceFrameUpdate>) -> Result<(), Error> {
+	let Some(first) = frames.first() else {
+		return Ok(());
+	};
+	if frames.len() > 64 {
+		return Err(Error::new("An image batch cannot contain more than 64 frames".to_owned()));
+	}
+	if frames
+		.iter()
+		.any(|frame| frame.context.device != first.context.device || frame.context.profile != first.context.profile)
+	{
+		return Err(Error::new("Every frame in an image batch must target the same device and profile".to_owned()));
 	}
 
-	if let Err(error) = crate::events::outbound::devices::update_image(context, Some(image)).await {
-		log::warn!("Failed to update device image: {}", error);
+	// Keep the selected-profile lock until the batch has reached the device. A
+	// competing profile switch therefore cannot let an older batch commit afterward.
+	let mut device_stores = crate::store::profiles::DEVICE_STORES.write().await;
+	if device_stores.get_selected_profile(&first.context.device).ok().as_ref() != Some(&first.context.profile) {
+		return Ok(());
 	}
+
+	let updates = frames.into_iter().map(|frame| (frame.context, frame.image)).collect();
+	crate::events::outbound::devices::update_images(updates).await?;
+	Ok(())
 }
 
 #[derive(Clone, serde::Serialize)]

@@ -1,4 +1,5 @@
 import { writable } from "svelte/store";
+import { cancelDeviceFrames } from "./deviceFrames";
 
 let pausedDevices = new Set<string>();
 const store = writable<ReadonlySet<string>>(pausedDevices);
@@ -9,6 +10,7 @@ export const pausedProfileRenderingDevices = {
 
 export function pauseProfileRendering(device: string): boolean {
 	if (pausedDevices.has(device)) return false;
+	cancelDeviceFrames(device);
 	pausedDevices = new Set(pausedDevices).add(device);
 	store.set(pausedDevices);
 	return true;

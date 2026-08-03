@@ -4,7 +4,10 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 
-use ajazz_sdk::{AjazzError, Event, Kind, asynchronous::AsyncAjazz};
+use ajazz_sdk::{
+	AjazzError, Event, Kind,
+	asynchronous::{AsyncAjazz, DeviceImageUpdate},
+};
 use base64::Engine as _;
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
@@ -25,29 +28,46 @@ pub async fn resume_profile_rendering(id: &str) {
 	*profile_rendering_gate(id).write().await = false;
 }
 
-pub async fn update_image(context: &crate::shared::Context, image: Option<&str>) -> Result<(), anyhow::Error> {
-	let rendering_gate = profile_rendering_gate(&context.device);
+pub async fn update_images(updates: Vec<(crate::shared::Context, Option<String>)>) -> Result<(), anyhow::Error> {
+	let Some(device_id) = updates.first().map(|(context, _)| context.device.clone()) else {
+		return Ok(());
+	};
+	if updates.iter().any(|(context, _)| context.device != device_id) {
+		return Err(anyhow::anyhow!("An image batch cannot target multiple devices"));
+	}
+
+	let rendering_gate = profile_rendering_gate(&device_id);
 	let rendering_paused = rendering_gate.read().await;
 	if *rendering_paused {
 		return Ok(());
 	}
 
-	if let Some(device) = AJAZZ_DEVICES.read().await.get(&context.device) {
-		if let Some(image) = image {
-			let data = image.split_once(',').unwrap().1;
-			let bytes = base64::engine::general_purpose::STANDARD.decode(data)?;
-			if context.controller == "Encoder" {
-				device.set_touch_zone_image(context.position, image::load_from_memory(&bytes)?).await?;
-			} else {
-				device.set_button_image(context.position, image::load_from_memory(&bytes)?).await?;
-			}
-		} else if context.controller == "Encoder" {
-			device.clear_touch_zone_image(context.position).await?;
-		} else {
-			device.clear_button_image(context.position).await?;
-		}
-		device.flush().await?;
-	}
+	let device = AJAZZ_DEVICES.read().await.get(&device_id).cloned();
+	let Some(device) = device else {
+		return Ok(());
+	};
+
+	let updates = tokio::task::block_in_place(move || {
+		updates
+			.into_iter()
+			.map(|(context, image)| {
+				let image = image
+					.map(|image| {
+						let (_, data) = image.split_once(',').ok_or_else(|| anyhow::anyhow!("Invalid image data URL"))?;
+						let bytes = base64::engine::general_purpose::STANDARD.decode(data)?;
+						Ok::<_, anyhow::Error>(image::load_from_memory(&bytes)?)
+					})
+					.transpose()?;
+				Ok(if context.controller == "Encoder" {
+					DeviceImageUpdate::TouchZone { touch: context.position, image }
+				} else {
+					DeviceImageUpdate::Button { key: context.position, image }
+				})
+			})
+			.collect::<Result<Vec<_>, anyhow::Error>>()
+	})?;
+
+	device.apply_image_batch(updates).await?;
 	Ok(())
 }
 

@@ -45,22 +45,6 @@ async fn profile_will_disappear(profile: &crate::shared::Profile) {
 	}
 }
 
-async fn clear_vacated_slots(old_profile: &crate::shared::Profile, new_profile: &crate::shared::Profile) {
-	for (old_slots, new_slots) in [(&old_profile.keys, &new_profile.keys), (&old_profile.sliders, &new_profile.sliders)] {
-		for (position, old_instance) in old_slots.iter().enumerate() {
-			let Some(old_instance) = old_instance else {
-				continue;
-			};
-			if new_slots.get(position).and_then(Option::as_ref).is_some() {
-				continue;
-			}
-			if let Err(error) = crate::events::outbound::devices::update_image((&old_instance.context).into(), None).await {
-				log::warn!("Failed to clear vacated profile slot: {error}");
-			}
-		}
-	}
-}
-
 #[command]
 pub fn get_profiles(device: &str) -> Result<Vec<String>, Error> {
 	Ok(get_device_profiles(device)?)
@@ -112,7 +96,6 @@ pub async fn set_selected_profile(device: String, id: String) -> Result<(), Erro
 		}
 	};
 	let new_profile = &store.value;
-	clear_vacated_slots(&old_profile, new_profile).await;
 	profile_will_appear(new_profile).await;
 	store.save()?;
 

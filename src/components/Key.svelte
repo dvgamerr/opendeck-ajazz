@@ -10,6 +10,7 @@
 	import InstanceEditor from "./InstanceEditor.svelte";
 
 	import { isGifImageSource } from "$lib/imageFormat";
+	import { queueDeviceFrame } from "$lib/deviceFrames";
 	import { pausedProfileRenderingDevices } from "$lib/profileRendering";
 	import { copiedContext, inspectedInstance, inspectedParentAction, openContextMenu } from "$lib/propertyInspector";
 	import { CanvasLock, getImage, renderImage } from "$lib/rendererHelper";
@@ -147,7 +148,6 @@
 		return () => {
 			renderGeneration++;
 			stopAnimation();
-			pendingDeviceFrame = undefined;
 			disposed = true;
 			unlisteners.forEach((unlisten) => unlisten());
 			timeouts.forEach(clearTimeout);
@@ -163,8 +163,6 @@
 	let renderGeneration = 0;
 	let cachedGifSource: string | undefined;
 	let cachedGifImage: HTMLImageElement | undefined;
-	let pendingDeviceFrame: { context: Context; image: string } | undefined;
-	let sendingDeviceFrame = false;
 	$: profileRenderingPaused = context ? $pausedProfileRenderingDevices.has(context.device) : false;
 
 	function stopAnimation() {
@@ -174,31 +172,9 @@
 		}
 	}
 
-	async function flushDeviceFrames() {
-		if (sendingDeviceFrame) return;
-		sendingDeviceFrame = true;
-		try {
-			while (pendingDeviceFrame) {
-				const frame = pendingDeviceFrame;
-				pendingDeviceFrame = undefined;
-				try {
-					await invoke("update_image", frame);
-				} catch (error) {
-					console.warn("Failed to update device image", error);
-				}
-			}
-		} finally {
-			sendingDeviceFrame = false;
-		}
-	}
-
-	function queueDeviceFrame(frameContext: Context | null, isActive: boolean) {
+	function sendDeviceFrame(frameContext: Context | null, isActive: boolean, image: string | null) {
 		if (profileRenderingPaused || !isActive || !frameContext || !canvas) return;
-		pendingDeviceFrame = {
-			context: { ...frameContext },
-			image: canvas.toDataURL("image/jpeg"),
-		};
-		void flushDeviceFrames();
+		queueDeviceFrame(frameContext, image);
 	}
 
 	async function renderSlot(
@@ -224,6 +200,7 @@
 			cachedGifImage = undefined;
 			const canvasContext = canvas.getContext("2d");
 			if (canvasContext) canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+			sendDeviceFrame(currentContext, isActive, null);
 			return;
 		}
 
@@ -247,7 +224,7 @@
 			}
 
 			if (generation != renderGeneration) return undefined;
-			if (sendToDevice) queueDeviceFrame(currentContext, isActive);
+			if (sendToDevice) sendDeviceFrame(currentContext, isActive, canvas.toDataURL("image/jpeg"));
 			return sourceImage;
 		};
 
@@ -280,7 +257,6 @@
 		if (profileRenderingPaused) {
 			renderGeneration++;
 			stopAnimation();
-			pendingDeviceFrame = undefined;
 		} else {
 			void renderSlot(slot, state, context, active, showOk, showAlert, pressed, canvasWidth, canvasHeight);
 		}

@@ -101,6 +101,7 @@ async fn main() {
 			frontend::instances::remove_instance,
 			frontend::instances::set_state,
 			frontend::instances::update_image,
+			frontend::instances::update_images,
 			frontend::profiles::get_profiles,
 			frontend::profiles::get_selected_profile,
 			frontend::profiles::reload_selected_profile,

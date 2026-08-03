@@ -13,7 +13,36 @@ use tokio::time::sleep;
 use crate::{AjazzError, AjazzInput, DeviceState, Event, Kind};
 use crate::device::{handle_input_state_change, Ajazz};
 use crate::hid::list_devices;
-use crate::images::convert_image_async;
+use crate::images::{convert_image_async, convert_image_with_format};
+
+/// An image change that is committed together with the other changes in the batch.
+pub enum DeviceImageUpdate {
+    /// Change or clear a keypad button image.
+    Button {
+        /// Zero-based keypad position.
+        key: u8,
+        /// New image, or `None` to clear the button.
+        image: Option<DynamicImage>,
+    },
+    /// Change or clear an action zone on the touchscreen strip.
+    TouchZone {
+        /// Zero-based touchscreen action-zone position.
+        touch: u8,
+        /// New image, or `None` to clear the zone.
+        image: Option<DynamicImage>,
+    },
+}
+
+enum PreparedDeviceImageUpdate {
+    Button {
+        key: u8,
+        image_data: Option<Vec<u8>>,
+    },
+    TouchZone {
+        touch: u8,
+        image_data: Option<Vec<u8>>,
+    },
+}
 
 /// Actually refreshes the device list, can be safely ran inside [multi_thread](tokio::runtime::Builder::new_multi_thread) runtime
 pub fn refresh_device_list_async(hidapi: &mut HidApi) -> HidResult<()> {
@@ -188,6 +217,66 @@ impl AsyncAjazz {
     ) -> Result<(), AjazzError> {
         let device = self.device.lock().await;
         block_in_place(move || device.set_touch_zone_image(touch, image))
+    }
+
+    /// Applies several image changes while holding the device lock once, then commits
+    /// every cached image with a single flush.
+    pub async fn apply_image_batch(
+        &self,
+        updates: Vec<DeviceImageUpdate>,
+    ) -> Result<(), AjazzError> {
+        let kind = self.kind;
+        let prepared = block_in_place(move || {
+            updates
+                .into_iter()
+                .map(|update| match update {
+                    DeviceImageUpdate::Button { key, image } => {
+                        Ok(PreparedDeviceImageUpdate::Button {
+                            key,
+                            image_data: image
+                                .map(|image| crate::images::convert_image(kind, image))
+                                .transpose()?,
+                        })
+                    }
+                    DeviceImageUpdate::TouchZone { touch, image } => {
+                        let format = kind
+                            .touch_zone_image_format()
+                            .ok_or(AjazzError::UnsupportedOperation)?;
+                        Ok(PreparedDeviceImageUpdate::TouchZone {
+                            touch,
+                            image_data: image
+                                .map(|image| convert_image_with_format(format, image))
+                                .transpose()?,
+                        })
+                    }
+                })
+                .collect::<Result<Vec<_>, AjazzError>>()
+        })?;
+
+        let device = self.device.lock().await;
+        block_in_place(move || {
+            for update in prepared {
+                match update {
+                    PreparedDeviceImageUpdate::Button {
+                        key,
+                        image_data: Some(image_data),
+                    } => device.set_button_image_data(key, &image_data)?,
+                    PreparedDeviceImageUpdate::Button {
+                        key,
+                        image_data: None,
+                    } => device.clear_button_image(key)?,
+                    PreparedDeviceImageUpdate::TouchZone {
+                        touch,
+                        image_data: Some(image_data),
+                    } => device.write_native_image_to_cache(touch, &image_data)?,
+                    PreparedDeviceImageUpdate::TouchZone {
+                        touch,
+                        image_data: None,
+                    } => device.clear_touch_zone_image(touch)?,
+                }
+            }
+            device.flush_batch()
+        })
     }
 
     /// Clears one of the four zones of the AKP05E_552A touchscreen strip.
