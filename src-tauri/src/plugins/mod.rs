@@ -35,6 +35,21 @@ fn should_sync_builtin_plugin(existing_version: &semver::Version, builtin_versio
 	development || existing_version < builtin_version
 }
 
+fn webview_plugin_initialization_script(port: u16, uuid: &str, info: &str) -> String {
+	format!(
+		r#"const opendeckInit = () => {{
+			try {{
+				if (typeof connectOpenActionSocket === "function") connectOpenActionSocket({port}, "{uuid}", "registerPlugin", `{info}`);
+				else connectElgatoStreamDeckSocket({port}, "{uuid}", "registerPlugin", `{info}`);
+			}} catch (e) {{
+				setTimeout(opendeckInit, 10);
+			}}
+		}};
+		opendeckInit();
+		"#
+	)
+}
+
 pub static PORT_BASE: Lazy<u16> = Lazy::new(|| {
 	let mut base = 57116;
 	loop {
@@ -176,9 +191,19 @@ pub async fn initialise_plugin(path: &path::Path) -> anyhow::Result<()> {
 	let code_path_lowercase = code_path.to_ascii_lowercase();
 	if [".html", ".htm", ".xhtml"].iter().any(|extension| code_path_lowercase.ends_with(extension)) {
 		let url = format!("http://localhost:{}/", *PORT_BASE + 2) + path.join(&code_path).to_str().unwrap();
+		let info = info_param::make_info(plugin_uuid.to_owned(), manifest.version, false).await;
+		let initialization_script = webview_plugin_initialization_script(*PORT_BASE, plugin_uuid, &serde_json::to_string(&info)?);
+		let plugin_uuid_for_log = plugin_uuid.to_owned();
 		let window = tauri::WebviewWindowBuilder::new(APP_HANDLE.get().unwrap(), plugin_uuid.replace('.', "_"), tauri::WebviewUrl::External(url.parse()?))
 			.title(plugin_uuid)
 			.visible(false)
+			.on_page_load(move |window, payload| {
+				if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished)
+					&& let Err(error) = window.eval(initialization_script.clone())
+				{
+					log::error!("Failed to initialise webview plugin {plugin_uuid_for_log}: {error}");
+				}
+			})
 			.build()?;
 
 		if let Ok(store) = get_settings()
@@ -187,24 +212,6 @@ pub async fn initialise_plugin(path: &path::Path) -> anyhow::Result<()> {
 			let _ = window.show();
 			window.open_devtools();
 		}
-
-		let info = info_param::make_info(plugin_uuid.to_owned(), manifest.version, false).await;
-		window.eval(format!(
-			r#"const opendeckInit = () => {{
-				try {{
-					if (typeof connectOpenActionSocket === "function") connectOpenActionSocket({port}, "{uuid}", "{event}", `{info}`);
-					else connectElgatoStreamDeckSocket({port}, "{uuid}", "{event}", `{info}`);
-				}} catch (e) {{
-					setTimeout(opendeckInit, 10);
-				}}
-			}};
-			opendeckInit();
-			"#,
-			port = *PORT_BASE,
-			uuid = plugin_uuid,
-			event = "registerPlugin",
-			info = serde_json::to_string(&info)?
-		))?;
 
 		INSTANCES.lock().await.insert(plugin_uuid.to_owned(), PluginInstance::Webview);
 	} else if code_path.to_lowercase().ends_with(".js") || code_path.to_lowercase().ends_with(".mjs") || code_path.to_lowercase().ends_with(".cjs") {
@@ -495,7 +502,7 @@ async fn accept_connection(stream: TcpStream) {
 
 #[cfg(test)]
 mod tests {
-	use super::should_sync_builtin_plugin;
+	use super::{should_sync_builtin_plugin, webview_plugin_initialization_script};
 	use semver::Version;
 
 	#[test]
@@ -513,5 +520,15 @@ mod tests {
 		assert!(should_sync_builtin_plugin(&Version::new(2, 12, 2), &builtin, false));
 		assert!(!should_sync_builtin_plugin(&Version::new(2, 12, 3), &builtin, false));
 		assert!(!should_sync_builtin_plugin(&Version::new(3, 0, 0), &builtin, false));
+	}
+
+	#[test]
+	fn webview_plugin_initialization_uses_the_requested_registration_details() {
+		let script = webview_plugin_initialization_script(57_116, "com.microsoft.teams.sdPlugin", r#"{"application":"PixelDeck"}"#);
+
+		assert!(script.contains(r#"connectOpenActionSocket(57116, "com.microsoft.teams.sdPlugin", "registerPlugin""#));
+		assert!(script.contains(r#"connectElgatoStreamDeckSocket(57116, "com.microsoft.teams.sdPlugin", "registerPlugin""#));
+		assert!(script.contains(r#"`{"application":"PixelDeck"}`"#));
+		assert!(script.contains("setTimeout(opendeckInit, 10)"));
 	}
 }
