@@ -67,15 +67,17 @@ fn pagination_image(page: usize, profiles: &[String]) -> String {
 		shortened_profile(&profiles[page])
 	};
 	let profile_size = match profile.chars().count() {
-		0..=8 => 21,
-		9..=12 => 18,
-		_ => 15,
+		0..=8 => 17,
+		9..=12 => 15,
+		_ => 13,
 	};
 	let profile_color = if count == 0 { "#52525b" } else { "#f4f4f5" };
-	let profile = text_path(&profile, 88.0, 61, profile_size, profile_color);
+	let profile = text_path(&profile, 88.0, 59, profile_size, profile_color);
 
-	let (indicator_size, indicator_gap) = if count <= 14 {
-		(5.0, 4.0)
+	let (indicator_size, indicator_gap) = if count <= 10 {
+		(8.0, 6.0)
+	} else if count <= 14 {
+		(7.0, 4.0)
 	} else {
 		let size = ((120.0 - 2.0 * count.saturating_sub(1) as f32) / count as f32).clamp(2.0, 5.0);
 		(size, 2.0)
@@ -88,7 +90,7 @@ fn pagination_image(page: usize, profiles: &[String]) -> String {
 			let x = indicator_start + (indicator_size + indicator_gap) * index as f32;
 			let fill = if index == page { "#ffffff" } else { "#3f3f46" };
 			format!(
-				r##"<rect x="{x:.2}" y="79" width="{indicator_size:.2}" height="{indicator_size:.2}" fill="{fill}"/>"##
+				r##"<rect x="{x:.2}" y="77" width="{indicator_size:.2}" height="{indicator_size:.2}" fill="{fill}"/>"##
 			)
 		})
 		.collect::<String>();

@@ -2,91 +2,148 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<script>
-			let websocket;
-			let actionContext;
-			let availableProfiles = [];
-			let selectedProfiles = [];
-
-			function save() {
-				websocket?.send(
-					JSON.stringify({
-						event: "setSettings",
-						context: actionContext,
-						payload: { profiles: selectedProfiles },
-					}),
-				);
+		<style>
+			.pagination-intro,
+			.pagination-help,
+			.pagination-empty,
+			.pagination-section p {
+				margin: 0;
 			}
 
-			function renderProfiles() {
-				const list = document.getElementById("profiles");
-				list.replaceChildren();
-				for (const profile of availableProfiles) {
-					const row = document.createElement("label");
-					row.className = "flex cursor-pointer items-center gap-3 border-b border-base-300 px-3 py-2 last:border-b-0";
-
-					const checkbox = document.createElement("input");
-					checkbox.type = "checkbox";
-					checkbox.className = "checkbox checkbox-primary checkbox-sm";
-					checkbox.checked = selectedProfiles.includes(profile);
-					checkbox.addEventListener("change", () => {
-						if (checkbox.checked) selectedProfiles.push(profile);
-						else selectedProfiles = selectedProfiles.filter((selected) => selected !== profile);
-						renderProfiles();
-						save();
-					});
-
-					const name = document.createElement("span");
-					name.className = "min-w-0 flex-1 truncate";
-					name.textContent = profile;
-
-					const page = document.createElement("span");
-					const pageIndex = selectedProfiles.indexOf(profile);
-					page.className = pageIndex >= 0 ? "badge badge-primary badge-sm" : "badge badge-ghost badge-sm";
-					page.textContent = pageIndex >= 0 ? `Page ${pageIndex + 1}` : "Off";
-
-					row.append(checkbox, name, page);
-					list.append(row);
-				}
-
-				document.getElementById("empty").classList.toggle("hidden", availableProfiles.length > 0);
+			.pagination-intro,
+			.pagination-help,
+			.pagination-empty {
+				color: color-mix(in oklch, var(--color-base-content) 68%, transparent);
+				font-size: var(--ui-text-label);
+				line-height: 1.55;
 			}
 
-			function applySettings(settings) {
-				const configured = Array.isArray(settings?.profiles) ? settings.profiles : [];
-				selectedProfiles = configured.filter((profile, index) => availableProfiles.includes(profile) && configured.indexOf(profile) === index);
-				renderProfiles();
+			.pagination-help {
+				padding: var(--ui-space-3);
+				border: 1px solid color-mix(in oklch, var(--color-primary) 30%, var(--color-base-300));
+				border-radius: var(--radius-box);
+				background: color-mix(in oklch, var(--color-primary) 8%, var(--color-base-100));
 			}
 
-			function connectElgatoStreamDeckSocket(inPort, inPropertyInspectorUUID, inRegisterEvent, inInfo, inActionInfo) {
-				const actionInfo = JSON.parse(inActionInfo);
-				actionContext = actionInfo.context;
-				availableProfiles = Array.isArray(actionInfo.payload.profiles) ? actionInfo.payload.profiles : [];
-				applySettings(actionInfo.payload.settings);
-
-				websocket = new WebSocket("ws://localhost:" + inPort);
-				websocket.onopen = () => {
-					websocket.send(JSON.stringify({ event: inRegisterEvent, uuid: inPropertyInspectorUUID }));
-				};
-				websocket.onmessage = ({ data }) => {
-					const message = JSON.parse(data);
-					if (message.event === "didReceiveSettings" && message.context === actionContext) applySettings(message.payload.settings);
-				};
+			.pagination-section {
+				display: grid;
+				gap: var(--ui-space-2);
 			}
-		</script>
+
+			.pagination-section-header,
+			.pagination-toolbar,
+			.pagination-row,
+			.pagination-row-main,
+			.pagination-actions {
+				display: flex;
+				align-items: center;
+			}
+
+			.pagination-section-header,
+			.pagination-toolbar {
+				justify-content: space-between;
+				gap: var(--ui-space-2);
+			}
+
+			.pagination-section-title {
+				margin: 0;
+				font-size: var(--ui-text-label);
+				font-weight: 650;
+			}
+
+			.pagination-list {
+				overflow: hidden;
+				border: 1px solid var(--color-base-300);
+				border-radius: var(--radius-box);
+				background: var(--color-base-200);
+			}
+
+			.pagination-row {
+				min-height: 44px;
+				gap: var(--ui-space-2);
+				padding: var(--ui-space-2) var(--ui-space-3);
+			}
+
+			.pagination-row + .pagination-row {
+				border-top: 1px solid var(--color-base-300);
+			}
+
+			.pagination-row-main {
+				min-width: 0;
+				flex: 1;
+				gap: var(--ui-space-2);
+			}
+
+			.pagination-name {
+				overflow: hidden;
+				min-width: 0;
+				flex: 1;
+				font-size: var(--ui-text-body);
+				font-weight: 600;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.pagination-actions {
+				gap: var(--ui-space-1);
+			}
+
+			.pagination-actions .btn {
+				width: var(--ui-control-height-xs);
+				padding: 0;
+			}
+
+			.pagination-empty {
+				padding: var(--ui-space-4);
+				text-align: center;
+			}
+
+			.pagination-search {
+				min-width: 0;
+				flex: 1;
+			}
+
+			.pagination-hidden {
+				display: none;
+			}
+		</style>
+		<script type="module" src="profilePagination.js"></script>
 	</head>
 	<body class="inspector-page bg-base-200 text-base-content">
 		<section class="inspector-panel card bg-base-100">
 			<div class="card-body">
 				<header class="inspector-header">
 					<h1 class="card-title">Profile Pagination</h1>
-					<span class="badge badge-neutral">Dial</span>
+					<span id="selection-status" class="badge badge-neutral" aria-live="polite">0 selected</span>
 				</header>
-				<p class="text-sm opacity-70">Check profiles to assign Page 1, Page 2, Page 3, and so on. Turn the dial to switch pages; pages wrap at either end.</p>
-				<div class="alert py-2 text-xs"><span>Place this action on the same dial in every selected profile so paging remains available after each switch.</span></div>
-				<div id="profiles" class="overflow-hidden rounded-box border border-base-300 bg-base-200"></div>
-				<div id="empty" class="alert hidden"><span>No profiles are available for this device.</span></div>
-				<p class="text-xs opacity-60">To change page order, uncheck a profile and check it again.</p>
+
+				<p class="pagination-intro">Turn the dial to move through the ordered profile pages. Rotation wraps from the last page back to the first.</p>
+				<p class="pagination-help"><strong>Keep the dial available:</strong> place this action on the same dial in every profile included below.</p>
+
+				<section class="pagination-section" aria-labelledby="page-order-title">
+					<div class="pagination-section-header">
+						<h2 id="page-order-title" class="pagination-section-title">Page order</h2>
+						<button id="clear-all" type="button" class="btn btn-ghost btn-xs">Clear</button>
+					</div>
+					<div class="pagination-list">
+						<div id="selected-profiles"></div>
+						<p id="selected-empty" class="pagination-empty">Add profiles below to create your dial page order.</p>
+					</div>
+				</section>
+
+				<section class="pagination-section" aria-labelledby="available-title">
+					<div class="pagination-section-header">
+						<h2 id="available-title" class="pagination-section-title">Available profiles</h2>
+						<button id="add-all" type="button" class="btn btn-ghost btn-xs">Add all</button>
+					</div>
+					<div class="pagination-toolbar">
+						<input id="profile-search" type="search" class="input input-bordered input-sm pagination-search" placeholder="Search profiles..." aria-label="Search available profiles" />
+					</div>
+					<div class="pagination-list">
+						<div id="available-profiles"></div>
+						<p id="available-empty" class="pagination-empty"></p>
+					</div>
+				</section>
 			</div>
 		</section>
 	</body>
