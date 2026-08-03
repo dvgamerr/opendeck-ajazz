@@ -59,7 +59,7 @@ export async function renderImage(
 
 	const context = canvas.getContext("2d");
 	if (!context) return;
-	let renderedImage = sourceImage;
+	let renderedImage: HTMLImageElement | undefined;
 
 	try {
 		// Load image

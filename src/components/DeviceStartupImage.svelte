@@ -114,7 +114,6 @@
 	$: isDirty = revision != savedRevision;
 	$: if (previewPanel && previewFrameWidth && previewFrameHeight) updatePreviewDisplaySize();
 	$: if (previewCanvas && startupImage.width && startupImage.height) {
-		layers;
 		drawComposedImage(previewCanvas, layers, startupImage);
 	}
 	$: if (device.id != lastDeviceId) {

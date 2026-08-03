@@ -83,14 +83,14 @@ pub async fn set_startup_image(id: &str, image: image::DynamicImage) -> Result<(
 }
 
 pub async fn set_brightness(brightness: u8) {
-	for (_id, device) in AJAZZ_DEVICES.read().await.iter() {
+	for device in AJAZZ_DEVICES.read().await.values() {
 		let _ = device.set_brightness(brightness.clamp(0, 100)).await;
 		let _ = device.flush().await;
 	}
 }
 
 pub async fn reset_devices() {
-	for (_id, device) in AJAZZ_DEVICES.read().await.iter() {
+	for device in AJAZZ_DEVICES.read().await.values() {
 		let _ = device.reset().await;
 		let _ = device.flush().await;
 	}
@@ -119,10 +119,10 @@ async fn init(device: AsyncAjazz, device_id: String) {
 		MANAGED_DEVICES.write().await.remove(&device_id);
 		return;
 	}
-	if let Ok(settings) = crate::store::get_settings() {
-		if let Err(error) = device.set_brightness(settings.value.brightness).await {
-			log::warn!("Failed to set brightness for {device_id}: {error}");
-		}
+	if let Ok(settings) = crate::store::get_settings()
+		&& let Err(error) = device.set_brightness(settings.value.brightness).await
+	{
+		log::warn!("Failed to set brightness for {device_id}: {error}");
 	}
 	if let Err(error) = device.flush().await {
 		log::warn!("Failed to flush initial state for {device_id}: {error}");

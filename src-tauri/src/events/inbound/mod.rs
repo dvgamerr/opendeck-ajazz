@@ -109,7 +109,7 @@ pub async fn process_incoming_message(data: Result<Message, Error>, uuid: &str, 
 			}
 		}
 
-		if let Err(error) = match decoded {
+		let result = match decoded {
 			InboundEventType::RegisterDevice(event) => devices::register_device(uuid, event).await,
 			InboundEventType::DeregisterDevice(event) => devices::deregister_device(uuid, event).await,
 			InboundEventType::RerenderImages(event) => devices::rerender_images(event).await,
@@ -133,10 +133,11 @@ pub async fn process_incoming_message(data: Result<Message, Error>, uuid: &str, 
 			InboundEventType::SendToPlugin(_) => Ok(()),
 			InboundEventType::SwitchProfile(event) => misc::switch_profile(event).await,
 			InboundEventType::DeviceBrightness(event) => misc::device_brightness(event).await,
-		} {
-			if !error.to_string().contains("closed connection") {
-				warn!("Failed to process incoming event from plugin: {}", error);
-			}
+		};
+		if let Err(error) = result
+			&& !error.to_string().contains("closed connection")
+		{
+			warn!("Failed to process incoming event from plugin: {}", error);
 		}
 	}
 }
@@ -148,20 +149,19 @@ pub async fn process_incoming_message_pi(data: Result<Message, Error>, uuid: &st
 			Err(_) => return,
 		};
 
-		if let Some(context) = match &decoded {
+		let context = match &decoded {
 			InboundEventType::SetSettings(event) => Some(event.context.to_string()),
 			InboundEventType::GetSettings(event) => Some(event.context.to_string()),
 			InboundEventType::SetGlobalSettings(event) => Some(event.context.clone()),
 			InboundEventType::GetGlobalSettings(event) => Some(event.context.clone()),
 			InboundEventType::SendToPlugin(event) => Some(event.context.to_string()),
 			_ => None,
-		} {
-			if context != uuid {
-				return;
-			}
+		};
+		if context.is_some_and(|context| context != uuid) {
+			return;
 		}
 
-		if let Err(error) = match decoded {
+		let result = match decoded {
 			InboundEventType::SetSettings(event) => settings::set_settings(event, true).await,
 			InboundEventType::GetSettings(event) => settings::get_settings(event, true).await,
 			InboundEventType::SetGlobalSettings(event) => settings::set_global_settings(event, true).await,
@@ -170,10 +170,11 @@ pub async fn process_incoming_message_pi(data: Result<Message, Error>, uuid: &st
 			InboundEventType::LogMessage(event) => misc::log_message(None, event).await,
 			InboundEventType::SendToPlugin(event) => property_inspector::send_to_plugin(event).await,
 			_ => Ok(()),
-		} {
-			if !error.to_string().contains("closed connection") {
-				warn!("Failed to process incoming event from property inspector: {}", error);
-			}
+		};
+		if let Err(error) = result
+			&& !error.to_string().contains("closed connection")
+		{
+			warn!("Failed to process incoming event from property inspector: {}", error);
 		}
 	}
 }

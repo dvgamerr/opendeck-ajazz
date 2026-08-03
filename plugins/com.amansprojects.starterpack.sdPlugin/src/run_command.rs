@@ -65,17 +65,18 @@ async fn run_command(
 	let mut output = String::new();
 	reader.read_to_string(&mut output)?;
 
-	if let Some(path) = settings.get("file").map(|v| v.as_str().unwrap()) {
-		if !path.is_empty() {
-			tokio::fs::write(path, &output).await?;
-		}
+	if let Some(path) = settings
+		.get("file")
+		.and_then(serde_json::Value::as_str)
+		.filter(|path| !path.is_empty())
+	{
+		tokio::fs::write(path, &output).await?;
 	}
 
 	if settings
 		.get("show")
-		.unwrap_or(&serde_json::Value::Bool(false))
-		.as_bool()
-		.unwrap()
+		.and_then(serde_json::Value::as_bool)
+		.unwrap_or(false)
 	{
 		let mut lock = OUTBOUND_EVENT_MANAGER.lock().await;
 		let outbound = lock.as_mut().unwrap();
