@@ -296,10 +296,12 @@ impl Ajazz {
             .map_err(|_| AjazzError::PoisonError)?
             .clear();
 
+        // This firmware stages one targeted clear at a time, so each keypad
+        // position must be committed before sending the next one.
         for key in 0..self.kind.display_key_count() {
             self.clear_button_image(key)?;
+            self.flush_batch()?;
         }
-        self.flush_batch()?;
 
         Ok(())
     }
