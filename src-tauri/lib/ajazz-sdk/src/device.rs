@@ -3,8 +3,13 @@ use std::sync::RwLock;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use hidapi::{HidApi, HidDevice, HidError};
+use hidapi::{HidApi, HidError};
 use image::DynamicImage;
+
+#[cfg(not(target_os = "windows"))]
+use hidapi::HidDevice as DeviceHandle;
+#[cfg(target_os = "windows")]
+use crate::windows_hid::WindowsHidDevice as DeviceHandle;
 
 use crate::images::{
     WriteImageParameters, convert_image, convert_image_with_format,
@@ -20,7 +25,7 @@ pub struct Ajazz {
     /// Kind of the device
     kind: Kind,
     /// Connected HIDDevice
-    hid: HidDevice,
+    hid: DeviceHandle,
     /// Temporarily cache the image before sending it to the device
     image_cache: RwLock<Vec<ImageCache>>,
     /// Device needs to be initialized
@@ -78,7 +83,10 @@ impl Ajazz {
                     && is_supported_interface(device, kind)
             })
             .ok_or(AjazzError::DeviceNotFound)?;
+        #[cfg(not(target_os = "windows"))]
         let device = info.open_device(hidapi)?;
+        #[cfg(target_os = "windows")]
+        let device = DeviceHandle::open(info.path())?;
 
         Ok(Ajazz {
             kind,

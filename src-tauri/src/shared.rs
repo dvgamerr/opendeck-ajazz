@@ -150,7 +150,7 @@ impl Default for ActionState {
 			show: true,
 			colour: "#FFFFFF".to_owned(),
 			alignment: "middle".to_owned(),
-			family: "Liberation Sans".to_owned(),
+			family: "Pixeloid Sans".to_owned(),
 			style: "Regular".to_owned(),
 			size: FontSize(16),
 			underline: false,
@@ -343,3 +343,13 @@ pub static CATEGORIES: Lazy<RwLock<HashMap<String, Category>>> = Lazy::new(|| {
 	);
 	RwLock::new(hashmap)
 });
+
+#[cfg(test)]
+mod tests {
+	use super::ActionState;
+
+	#[test]
+	fn action_state_uses_the_pixel_font_by_default() {
+		assert_eq!(ActionState::default().family, "Pixeloid Sans");
+	}
+}

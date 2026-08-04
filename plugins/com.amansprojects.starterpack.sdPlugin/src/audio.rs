@@ -15,7 +15,9 @@ use crate::{
 
 pub const ACTION: &str = "com.amansprojects.starterpack.systemvolume";
 const DOUBLE_PRESS: Duration = Duration::from_secs(1);
-const ANIMATION_INTERVAL: Duration = Duration::from_millis(120);
+// The LCD image is transferred as several HID reports. One frame per second
+// keeps the peak indicator useful without continuously saturating the device.
+const ANIMATION_INTERVAL: Duration = Duration::from_secs(1);
 static LAST_PRESSES: LazyLock<Mutex<HashMap<String, Instant>>> = LazyLock::new(Default::default);
 static LIVE: LazyLock<Mutex<LiveAction>> = LazyLock::new(Default::default);
 
@@ -510,9 +512,14 @@ mod platform {
 #[cfg(test)]
 mod tests {
 	use super::{
-		AudioSnapshot, centered_status_layout, device_switch_indicator, driver_name,
-		snapshot_image, text_width,
+		ANIMATION_INTERVAL, AudioSnapshot, centered_status_layout, device_switch_indicator,
+		driver_name, snapshot_image, text_width,
 	};
+
+	#[test]
+	fn audio_animation_is_rate_limited_for_hid_displays() {
+		assert_eq!(ANIMATION_INTERVAL, std::time::Duration::from_secs(1));
+	}
 
 	#[test]
 	fn speaker_and_status_are_centered_as_one_group() {

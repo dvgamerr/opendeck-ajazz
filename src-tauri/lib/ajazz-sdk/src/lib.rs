@@ -16,6 +16,8 @@ mod images;
 mod device;
 mod protocol;
 mod hid;
+#[cfg(target_os = "windows")]
+mod windows_hid;
 
 pub use info::Kind;
 pub use device::{Ajazz, DeviceStateReader};

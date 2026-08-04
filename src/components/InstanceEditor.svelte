@@ -175,6 +175,7 @@
 							<span class="label-text mb-1">Font family</span>
 							<input list="families" bind:value={instance.states[state].family} placeholder="Font family" class="input input-bordered input-sm w-full" />
 							<datalist id="families">
+								<option value="Pixeloid Sans">Pixeloid Sans (Pixel)</option>
 								<option value="Liberation Sans">Liberation Sans</option>
 								<option value="Archivo Black">Archivo Black</option>
 								<option value="Comic Neue">Comic Neue</option>

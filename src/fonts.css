@@ -1,4 +1,11 @@
 @font-face {
+	font-family: "Pixeloid Sans";
+	src: url("../plugins/com.amansprojects.starterpack.sdPlugin/assets/fonts/PixeloidSans.ttf") format("truetype");
+	font-weight: normal;
+	font-style: normal;
+}
+
+@font-face {
 	font-family: "Anton";
 	src: url("/fonts/Anton-Regular.ttf");
 	font-weight: normal;

@@ -110,6 +110,9 @@ export async function renderImage(
 		const size = state.size * 2 * scale;
 		context.textAlign = "center";
 		context.font = (state.style.includes("Bold") ? "bold " : "") + (state.style.includes("Italic") ? "italic " : "") + `${size}px "${state.family}", sans-serif`;
+		// Canvas may draw with the fallback if a bundled font has not loaded yet.
+		// Loading is cached by the browser after the first render.
+		await document.fonts.load(context.font).catch(() => []);
 		context.fillStyle = state.colour;
 		context.strokeStyle = "black";
 		context.lineWidth = 3 * scale;
