@@ -17,7 +17,7 @@
 		"icon:generate": "pwsh -NoProfile -File scripts/generate-icons.ps1",
 		"installer:windows": "bun run tauri build --bundles nsis,msi",
 		"sync:version": "bun scripts/version-tag.mjs",
-		"cg:update": "cargo update --manifest-path src-tauri/Cargo.toml && cargo update --manifest-path src-tauri/lib/ajazz-sdk/Cargo.toml && cargo update --manifest-path plugins/com.amansprojects.starterpack.sdPlugin/Cargo.toml",
+		"cg:update": "cargo update --manifest-path src-tauri/Cargo.toml && cargo update --manifest-path src-tauri/lib/ajazz-sdk/Cargo.toml && cargo update --manifest-path plugins/com.amansprojects.starterpack.sdPlugin/Cargo.toml && cargo update --manifest-path plugins/com.dvgamerr.widgets.sdPlugin/Cargo.toml",
 		"tauri": "bun x --bun --no-install tauri"
 	},
 	"devDependencies": {

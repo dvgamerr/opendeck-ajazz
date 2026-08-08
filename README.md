@@ -114,6 +114,7 @@ Do not start multiple Tauri development sessions at once; both sessions may comp
 | `cargo test --manifest-path src-tauri/Cargo.toml`                                      | Test the Tauri backend                                       |
 | `cargo test --manifest-path src-tauri/lib/ajazz-sdk/Cargo.toml`                        | Test the Ajazz driver                                        |
 | `cargo test --manifest-path plugins/com.amansprojects.starterpack.sdPlugin/Cargo.toml` | Test bundled actions                                         |
+| `cargo test --manifest-path plugins/com.dvgamerr.widgets.sdPlugin/Cargo.toml`          | Test native dashboard widgets                                |
 | `./scripts/lint-app.sh`                                                                | Run the complete repository validation gate                  |
 
 ### Project map
@@ -123,6 +124,7 @@ src/                                             Svelte desktop UI
 src-tauri/src/                                   Tauri backend and event bridge
 src-tauri/lib/ajazz-sdk/                         Ajazz HID driver and protocol
 plugins/com.amansprojects.starterpack.sdPlugin/  Bundled actions and inspectors
+plugins/com.dvgamerr.widgets.sdPlugin/           Native data, system, and utility widgets
 tests/                                           Frontend behavior tests
 ```
 
