@@ -1,0 +1,84 @@
+{
+	"Name": "PixelDeck Widgets",
+	"Description": "Fast native dashboard widgets for PixelDeck",
+	"Author": "dvgamerr",
+	"Version": "1.0.0",
+	"CodePathWin": "windows/bin/pixeldeck-widgets.exe",
+	"CodePathMac": "darwin/bin/pixeldeck-widgets",
+	"CodePathLin": "linux/bin/pixeldeck-widgets",
+	"Icon": "icons/plugin",
+	"Category": "PixelDeck",
+	"OS": [{ "Platform": "windows" }, { "Platform": "mac" }, { "Platform": "linux" }],
+	"Actions": [
+		{
+			"Icon": "icons/gold",
+			"Name": "Gold Price",
+			"States": [{ "Image": "actionDefaultImage", "ShowTitle": false }],
+			"Controllers": ["Keypad"],
+			"SupportedInMultiActions": false,
+			"Tooltip": "YLG spot gold price in USD or THB",
+			"UUID": "com.dvgamerr.widgets.gold-price",
+			"PropertyInspectorPath": "propertyInspector/widget.html"
+		},
+		{
+			"Icon": "icons/currency",
+			"Name": "Currency Rate",
+			"States": [{ "Image": "actionDefaultImage", "ShowTitle": false }],
+			"Controllers": ["Keypad"],
+			"SupportedInMultiActions": false,
+			"Tooltip": "Yahoo Finance currency exchange rate",
+			"UUID": "com.dvgamerr.widgets.currency-rate",
+			"PropertyInspectorPath": "propertyInspector/widget.html"
+		},
+		{
+			"Icon": "icons/stock",
+			"Name": "Stock Price",
+			"States": [{ "Image": "actionDefaultImage", "ShowTitle": false }],
+			"Controllers": ["Keypad"],
+			"SupportedInMultiActions": false,
+			"Tooltip": "Stock price and position profit/loss",
+			"UUID": "com.dvgamerr.widgets.stock-price",
+			"PropertyInspectorPath": "propertyInspector/widget.html"
+		},
+		{
+			"Icon": "icons/air",
+			"Name": "Air Quality",
+			"States": [{ "Image": "actionDefaultImage", "ShowTitle": false }],
+			"Controllers": ["Keypad"],
+			"SupportedInMultiActions": false,
+			"Tooltip": "US AQI from an IQAir location page",
+			"UUID": "com.dvgamerr.widgets.air-quality",
+			"PropertyInspectorPath": "propertyInspector/widget.html"
+		},
+		{
+			"Icon": "icons/powershell",
+			"Name": "PowerShell",
+			"States": [{ "Image": "actionDefaultImage", "ShowTitle": false }],
+			"Controllers": ["Keypad"],
+			"SupportedInMultiActions": false,
+			"Tooltip": "Run a bundled PowerShell script",
+			"UUID": "com.dvgamerr.widgets.powershell",
+			"PropertyInspectorPath": "propertyInspector/widget.html"
+		},
+		{
+			"Icon": "icons/weather",
+			"Name": "Weather",
+			"States": [{ "Image": "actionDefaultImage", "ShowTitle": false }],
+			"Controllers": ["Keypad"],
+			"SupportedInMultiActions": false,
+			"Tooltip": "Current weather from Open-Meteo",
+			"UUID": "com.dvgamerr.widgets.weather",
+			"PropertyInspectorPath": "propertyInspector/widget.html"
+		},
+		{
+			"Icon": "icons/work",
+			"Name": "Work Hours Clock",
+			"States": [{ "Image": "actionDefaultImage", "ShowTitle": false }],
+			"Controllers": ["Keypad"],
+			"SupportedInMultiActions": false,
+			"Tooltip": "Clock and weekday work-hours progress",
+			"UUID": "com.dvgamerr.widgets.work-hours",
+			"PropertyInspectorPath": "propertyInspector/widget.html"
+		}
+	]
+}

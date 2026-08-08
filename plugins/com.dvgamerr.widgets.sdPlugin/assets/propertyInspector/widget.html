@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<style>
+			:root {
+				--widget-accent: #20e3ff;
+			}
+			.widget-header {
+				position: relative;
+				overflow: hidden;
+			}
+			.widget-header::before {
+				position: absolute;
+				inset: 0 auto 0 0;
+				width: 4px;
+				background: var(--widget-accent);
+				content: "";
+			}
+			.widget-grid {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: var(--ui-space-3);
+			}
+			.widget-grid .wide {
+				grid-column: 1 / -1;
+			}
+			.widget-note code {
+				word-break: break-word;
+			}
+			.widget-swap {
+				width: 100%;
+			}
+			@media (max-width: 480px) {
+				.widget-grid {
+					grid-template-columns: 1fr;
+				}
+				.widget-grid .wide {
+					grid-column: auto;
+				}
+			}
+		</style>
+		<script>
+			const currencies = [
+				"AED",
+				"AUD",
+				"BRL",
+				"CAD",
+				"CHF",
+				"CNY",
+				"DKK",
+				"EUR",
+				"GBP",
+				"HKD",
+				"IDR",
+				"INR",
+				"JPY",
+				"KRW",
+				"MXN",
+				"MYR",
+				"NOK",
+				"NZD",
+				"PHP",
+				"PLN",
+				"RUB",
+				"SAR",
+				"SEK",
+				"SGD",
+				"THB",
+				"TRY",
+				"USD",
+				"VND",
+				"ZAR",
+			];
+
+			const intervalOptions = (items) => items.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
+			const currencyOptions = currencies.map((code) => `<option value="${code}">${code}</option>`).join("");
+			const field = (label, name, attributes = "", wide = false) => `
+				<fieldset class="fieldset ${wide ? "wide" : ""}">
+					<legend class="fieldset-legend">${label}</legend>
+					<input class="input input-bordered" data-setting="${name}" ${attributes} />
+				</fieldset>`;
+			const select = (label, name, options, wide = false) => `
+				<fieldset class="fieldset ${wide ? "wide" : ""}">
+					<legend class="fieldset-legend">${label}</legend>
+					<select class="select select-bordered" data-setting="${name}" data-number="${/interval|startH|endH/.test(name)}">${options}</select>
+				</fieldset>`;
+
+			const definitions = {
+				"gold-price": {
+					title: "Gold Price",
+					badge: "YLG Bullion",
+					accent: "#facc15",
+					defaults: { interval: 15, currency: "USD" },
+					body: () => `
+						<div class="widget-grid">
+							${select("Currency", "currency", '<option value="USD">USD</option><option value="THB">THB</option>')}
+							${select(
+								"Refresh",
+								"interval",
+								intervalOptions([
+									[3, "3 seconds"],
+									[6, "6 seconds"],
+									[9, "9 seconds"],
+									[15, "15 seconds"],
+								]),
+							)}
+						</div>
+						<div role="alert" class="alert widget-note"><span>Pressing the key opens the XAUUSD chart. Network refreshes are shared across identical keys.</span></div>`,
+				},
+				"currency-rate": {
+					title: "Currency Rate",
+					badge: "Yahoo Finance",
+					accent: "#20e3ff",
+					defaults: { from: "USD", to: "THB", interval: 10000 },
+					body: () => `
+						<div class="widget-grid">
+							${select("From", "from", currencyOptions)}
+							${select("To", "to", currencyOptions)}
+							<button id="swap" type="button" class="btn btn-sm widget-swap">Swap currencies</button>
+							${select(
+								"Refresh",
+								"interval",
+								intervalOptions([
+									[5000, "5 seconds"],
+									[10000, "10 seconds"],
+									[15000, "15 seconds"],
+									[30000, "30 seconds"],
+									[60000, "1 minute"],
+									[300000, "5 minutes"],
+								]),
+							)}
+						</div>
+						<div role="alert" class="alert widget-note"><span>Press the key to refresh immediately.</span></div>`,
+				},
+				"stock-price": {
+					title: "Stock Price",
+					badge: "Position P/L",
+					accent: "#22c55e",
+					defaults: { symbol: "AAPL", displayName: "", cost: "", qty: "", interval: 10000 },
+					body: () => `
+						<div class="widget-grid">
+							${field("Symbol", "symbol", 'placeholder="AAPL"')}
+							${field("Display name", "displayName", 'placeholder="Optional"')}
+							${field("Purchase cost", "cost", 'type="number" min="0" step="0.01" placeholder="Optional"')}
+							${field("Quantity", "qty", 'type="number" min="0" step="0.01" placeholder="Optional"')}
+							${select(
+								"Refresh",
+								"interval",
+								intervalOptions([
+									[5000, "5 seconds"],
+									[10000, "10 seconds"],
+									[15000, "15 seconds"],
+									[30000, "30 seconds"],
+									[60000, "1 minute"],
+									[300000, "5 minutes"],
+								]),
+								true,
+							)}
+						</div>
+						<div role="alert" class="alert widget-note"><span>When cost and quantity are set, the key shows the actual position P/L. Without them, it shows daily change.</span></div>`,
+				},
+				"air-quality": {
+					title: "Air Quality",
+					badge: "US AQI",
+					accent: "#20e3ff",
+					defaults: { url: "https://www.iqair.com/th-en/thailand/bangkok/nong-khaem", interval: 3600000 },
+					body: () => `
+						<div class="widget-grid">
+							${field("IQAir location URL", "url", 'type="url" placeholder="https://www.iqair.com/..."', true)}
+							${select(
+								"Refresh",
+								"interval",
+								intervalOptions([
+									[3600000, "1 hour"],
+									[14400000, "4 hours"],
+									[21600000, "6 hours"],
+									[43200000, "12 hours"],
+								]),
+								true,
+							)}
+						</div>
+						<div role="alert" class="alert widget-note"><span>For safety, only HTTPS pages on <code>iqair.com</code> are accepted. If IQAir rate-limits the page, the location slug is resolved through Open-Meteo AQI. Press the key to refresh.</span></div>`,
+				},
+				powershell: {
+					title: "PowerShell",
+					badge: "Hidden runner",
+					accent: "#20e3ff",
+					defaults: { script: "", label: "" },
+					body: () => `
+						<div class="widget-grid">
+							${field("Script name", "script", 'placeholder="MyScript"')}
+							${field("Key label", "label", 'placeholder="Optional"')}
+						</div>
+						<div role="alert" class="alert widget-note"><span>Runs <code>scripts/&lt;name&gt;.ps1</code> with no console window. The name is sanitized and must resolve inside the installed plugin.</span></div>`,
+				},
+				weather: {
+					title: "Weather",
+					badge: "Open-Meteo",
+					accent: "#20e3ff",
+					defaults: { lat: "13.72", lon: "100.41", interval: 1800000 },
+					body: () => `
+						<div class="widget-grid">
+							${field("Latitude", "lat", 'type="number" min="-90" max="90" step="0.0001"')}
+							${field("Longitude", "lon", 'type="number" min="-180" max="180" step="0.0001"')}
+							${select(
+								"Refresh",
+								"interval",
+								intervalOptions([
+									[900000, "15 minutes"],
+									[1800000, "30 minutes"],
+									[3600000, "1 hour"],
+								]),
+								true,
+							)}
+						</div>
+						<div role="alert" class="alert widget-note"><span>Defaults to Nong Khaem, Bangkok. Weather symbols are rendered locally, avoiding a second icon request.</span></div>`,
+				},
+				"work-hours": {
+					title: "Work Hours Clock",
+					badge: "Mon - Fri",
+					accent: "#ff9b57",
+					defaults: { startH: 9, endH: 18 },
+					body: () => `
+						<div class="widget-grid">
+							${field("Start hour", "startH", 'type="number" min="0" max="23" step="1"')}
+							${field("End hour", "endH", 'type="number" min="0" max="23" step="1"')}
+						</div>
+						<div role="alert" class="alert widget-note"><span>The clock updates once per minute and sends a new key image only when its rendered frame changes.</span></div>`,
+				},
+			};
+
+			let socket;
+			let context;
+			let settings = {};
+			let definition;
+			let saveTimer;
+
+			function collectSettings() {
+				document.querySelectorAll("[data-setting]").forEach((element) => {
+					let value = element.value;
+					if (element.dataset.number === "true" || element.type === "number") {
+						value = value === "" ? "" : Number(value);
+					}
+					settings[element.dataset.setting] = value;
+				});
+			}
+
+			function save(immediate = false) {
+				collectSettings();
+				clearTimeout(saveTimer);
+				const send = () => {
+					if (socket?.readyState !== WebSocket.OPEN) return;
+					socket.send(JSON.stringify({ event: "setSettings", context, payload: settings }));
+					document.getElementById("save-status").textContent = "Saved";
+				};
+				if (immediate) send();
+				else saveTimer = setTimeout(send, 180);
+			}
+
+			function render(actionId) {
+				definition = definitions[actionId] || definitions["gold-price"];
+				document.documentElement.style.setProperty("--widget-accent", definition.accent);
+				document.getElementById("title").textContent = definition.title;
+				document.getElementById("badge").textContent = definition.badge;
+				document.getElementById("content").innerHTML = definition.body();
+				settings = { ...definition.defaults, ...settings };
+				document.querySelectorAll("[data-setting]").forEach((element) => {
+					element.value = settings[element.dataset.setting] ?? "";
+					element.addEventListener(element.tagName === "SELECT" ? "change" : "input", () => save(element.tagName === "SELECT"));
+				});
+				document.getElementById("swap")?.addEventListener("click", () => {
+					const from = document.querySelector('[data-setting="from"]');
+					const to = document.querySelector('[data-setting="to"]');
+					[from.value, to.value] = [to.value, from.value];
+					save(true);
+				});
+			}
+
+			function connectElgatoStreamDeckSocket(port, uuid, registerEvent, info, actionInfo) {
+				const action = JSON.parse(actionInfo);
+				context = action.context;
+				settings = action.payload.settings || {};
+				const actionId = action.action.split(".").pop();
+				render(actionId);
+				socket = new WebSocket("ws://localhost:" + port);
+				socket.onopen = () => {
+					socket.send(JSON.stringify({ event: registerEvent, uuid }));
+					const hadAllDefaults = Object.keys(definition.defaults).every((key) => Object.hasOwn(action.payload.settings || {}, key));
+					if (!hadAllDefaults) save(true);
+				};
+			}
+
+			const connectOpenActionSocket = connectElgatoStreamDeckSocket;
+		</script>
+	</head>
+	<body class="inspector-page bg-base-200 text-base-content">
+		<section class="inspector-panel card bg-base-100">
+			<div class="card-body">
+				<header class="inspector-header widget-header">
+					<h1 id="title" class="card-title">PixelDeck Widget</h1>
+					<span id="badge" class="badge badge-neutral">Action options</span>
+				</header>
+				<div id="content"></div>
+				<div class="flex items-center justify-between text-xs opacity-50">
+					<span>PixelDeck native widget</span>
+					<output id="save-status">Ready</output>
+				</div>
+			</div>
+		</section>
+	</body>
+</html>
