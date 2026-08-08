@@ -261,12 +261,19 @@ impl Ajazz {
             .write()
             .map_err(|_| AjazzError::PoisonError)?;
 
+        let flush_each_image = should_flush_each_image(self.kind);
         for image in images.iter() {
             self.write_key_image(image.key, &image.image_data)?;
+            if flush_each_image {
+                let packet = self.kind.flush_packet();
+                self.hid.write(packet.as_slice())?;
+            }
         }
 
-        let packet = self.kind.flush_packet();
-        self.hid.write(packet.as_slice())?;
+        if !flush_each_image {
+            let packet = self.kind.flush_packet();
+            self.hid.write(packet.as_slice())?;
+        }
         images.clear();
 
         Ok(())
@@ -497,6 +504,13 @@ impl Ajazz {
     }
 }
 
+// The AKP05E_552A firmware accepts one complete image transaction at a time:
+// BAT header, JPEG reports, then STP. Sending another BAT before STP eventually
+// fills its output queue and makes Windows time out a pending HID write.
+fn should_flush_each_image(kind: Kind) -> bool {
+    kind == Kind::Akp05E552A
+}
+
 /// Button reader that keeps state of the Ajazz and returns events instead of full states
 pub struct DeviceStateReader {
     device: Arc<Ajazz>,
@@ -583,5 +597,17 @@ impl DeviceStateReader {
 
         let updates = handle_input_state_change(input, &mut current_state)?;
         Ok(updates)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_flush_each_image;
+    use crate::Kind;
+
+    #[test]
+    fn akp05e_commits_each_image_before_starting_the_next_one() {
+        assert!(should_flush_each_image(Kind::Akp05E552A));
+        assert!(!should_flush_each_image(Kind::Akp153));
     }
 }
